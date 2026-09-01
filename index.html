@@ -1,4 +1,167 @@
-ai-video-maker
-│
-├── README.md
-└── index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>AI Video Maker</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <header class="topbar">
+    <div class="logo">🎬 AI Video Maker</div>
+    <div class="status">FREE MVP</div>
+  </header>
+
+  <main class="container">
+
+    <section class="hero">
+      <h1>Turn an idea into a video.</h1>
+
+      <p>
+        Create scripts, scenes, prompts and production plans
+        with one click.
+      </p>
+    </section>
+
+    <section class="creator-card">
+
+      <h2>✨ One-Click Creator</h2>
+
+      <label for="idea">
+        What do you want to create?
+      </label>
+
+      <textarea
+        id="idea"
+        placeholder="Example: A baby bear discovers the colors of the rainbow..."
+      ></textarea>
+
+      <div class="settings">
+
+        <div>
+          <label for="type">Video Type</label>
+
+          <select id="type">
+            <option>YouTube Short</option>
+            <option>TikTok</option>
+            <option>Instagram Reel</option>
+            <option>Educational Video</option>
+            <option>Story Video</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="length">Length</label>
+
+          <select id="length">
+            <option value="30">30 seconds</option>
+            <option value="45">45 seconds</option>
+            <option value="60">60 seconds</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="style">Style</label>
+
+          <select id="style">
+            <option>Kids 3D Animation</option>
+            <option>Cartoon</option>
+            <option>Storybook</option>
+            <option>Educational</option>
+            <option>Cinematic</option>
+          </select>
+        </div>
+
+      </div>
+
+      <button onclick="createVideo()">
+        ✨ CREATE VIDEO
+      </button>
+
+    </section>
+
+    <section id="results" class="results hidden">
+
+      <div class="result-header">
+
+        <div>
+          <h2>Your Video Blueprint</h2>
+          <p id="videoSummary"></p>
+        </div>
+
+        <div class="score">
+          <span id="score">--</span>
+          <small>/100</small>
+        </div>
+
+      </div>
+
+      <div class="result-section">
+
+        <h3>🎯 Hook</h3>
+
+        <p id="hook"></p>
+
+      </div>
+
+      <div class="result-section">
+
+        <h3>📝 Script</h3>
+
+        <p id="script"></p>
+
+      </div>
+
+      <div class="result-section">
+
+        <h3>🎬 Scenes</h3>
+
+        <div id="scenes"></div>
+
+      </div>
+
+      <div class="result-section">
+
+        <h3>📱 Publishing Package</h3>
+
+        <div class="publishing">
+
+          <div>
+            <strong>Title</strong>
+            <p id="title"></p>
+          </div>
+
+          <div>
+            <strong>Description</strong>
+            <p id="description"></p>
+          </div>
+
+          <div>
+            <strong>Hashtags</strong>
+            <p id="hashtags"></p>
+          </div>
+
+        </div>
+
+      </div>
+
+      <button class="secondary" onclick="makeMore()">
+        ♻️ MAKE 10 MORE IDEAS
+      </button>
+
+    </section>
+
+  </main>
+
+  <footer>
+    AI Video Maker — Free MVP
+  </footer>
+
+  <script src="app.js"></script>
+
+</body>
+</html>
