@@ -24,7 +24,7 @@
     const kind = clean(input?.kind); if (!allowedKinds.has(kind)) throw new Error("Unsupported generation kind.");
     const provider = get(input?.providerId); if (!provider || !provider.enabled || !provider.kinds.includes(kind)) throw new Error("Provider is not available for this job.");
     if (input?.freeMode !== false && provider.costPerJob > 0) throw new Error("Paid provider blocked by $0 mode. Enable paid generation explicitly before using it.");
-    return Object.freeze({ schemaVersion: 2, jobId: globalThis.crypto?.randomUUID?.() || `job-${Date.now()}`, providerId: provider.id, kind, prompt: clean(input?.prompt), sourceAsset: clean(input?.sourceAsset), estimatedCost: provider.costPerJob, createdAt: new Date().toISOString() });
+    return Object.freeze({ schemaVersion: 1, jobId: globalThis.crypto?.randomUUID?.() || `job-${Date.now()}`, providerId: provider.id, kind, prompt: clean(input?.prompt), sourceAsset: clean(input?.sourceAsset), estimatedCost: provider.costPerJob, createdAt: new Date().toISOString() });
   }
   window.AIVM_PROVIDERS = Object.freeze({ register, list, get, select, createJob, kinds: [...allowedKinds] });
 })();
