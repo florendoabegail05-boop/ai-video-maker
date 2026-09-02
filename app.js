@@ -1,532 +1,231 @@
+"use strict";
+
+const EXAMPLE_IDEA = "A baby bear discovers the colors of the rainbow and learns them one by one.";
+let currentBlueprint = null;
+
+const $ = (id) => document.getElementById(id);
+
 function escapeHTML(text) {
-  return String(text)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+  return String(text).replace(/[&<>\"']/g, (char) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;"
+  }[char]));
+}
+
+function slug(text) {
+  return String(text).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function showToast(message) {
+  const toast = $("toast");
+  toast.textContent = message;
+  toast.classList.add("show");
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => toast.classList.remove("show"), 1800);
 }
 
 function createVideo() {
-  const idea = document.getElementById("idea").value.trim();
-  const type = document.getElementById("type").value;
-  const length = Number(document.getElementById("length").value);
-  const style = document.getElementById("style").value;
-
+  const idea = $("idea").value.trim();
   if (!idea) {
-    alert("Please enter a video idea first.");
+    $("idea").focus();
+    showToast("Add a video idea first.");
     return;
   }
 
+  const type = $("type").value;
+  const length = Number($("length").value);
+  const style = $("style").value;
+  const includeCta = $("includeCta").checked;
+  const includeVoice = $("includeVoice").checked;
   const sceneCount = Math.max(3, Math.round(length / 5));
-
-  const scenes = buildScenes(idea, sceneCount, style);
-
-  const hook = buildHook(idea);
-  const script = buildScript(idea, scenes);
+  const scenes = buildScenes(idea, sceneCount, style, includeVoice);
+  const hook = buildHook(idea, type);
+  const script = buildScript(idea, scenes, includeCta);
+  const title = createTitle(idea, type);
+  const description = createDescription(idea, type, includeCta);
+  const hashtags = createHashtags(idea, type);
   const score = calculateScore(idea, type, style);
+  const ideas = makeIdeaList(idea);
 
-  document.getElementById("videoSummary").textContent =
-    `${type} • ${length} seconds • ${style}`;
-
-  document.getElementById("hook").textContent = hook;
-  document.getElementById("script").textContent = script;
-  document.getElementById("score").textContent = score;
-
-  renderScenes(scenes);
-
-  document.getElementById("title").textContent = createTitle(idea);
-
-  document.getElementById("description").textContent =
-    `Join this ${type.toLowerCase()} adventure as we discover ${idea.toLowerCase()}. Created in a fun ${style.toLowerCase()} style.`;
-
-  document.getElementById("hashtags").textContent =
-    "#YouTubeShorts #Kids #Animation #Story #Adventure #AIVideo";
-
-  document.getElementById("results").classList.remove("hidden");
-
-  window.currentBlueprint = {
-    idea,
-    type,
-    length,
-    style,
-    hook,
-    script,
-    scenes,
-    score
-  };
-
-  document.getElementById("results").scrollIntoView({
-    behavior: "smooth"
-  });
+  currentBlueprint = { idea, type, length, style, includeCta, includeVoice, hook, script, scenes, score, title, description, hashtags, ideas };
+  renderBlueprint(currentBlueprint);
+  $("results").classList.remove("hidden");
+  $("results").scrollIntoView({ behavior: "smooth", block: "start" });
+  showToast("Blueprint created locally.");
 }
 
+function buildHook(idea, type) {
+  const subject = slug(idea);
+  if (type === "Educational Video") return `Can you discover the surprising lesson hidden in ${subject}?`;
+  return `Wait! You won't believe what happens when ${subject}!`;
+}
 
-/* =========================
-   STORY ENGINE
-========================= */
+function buildScript(idea, scenes, includeCta) {
+  const lines = scenes.map((scene) => scene.voiceover).filter(Boolean);
+  let script = [`Here's a tiny adventure about ${idea.toLowerCase()}.`, ...lines];
+  if (includeCta) script.push("What should we discover next? Follow for the next adventure!");
+  return script.join(" ");
+}
 
-function buildHook(idea) {
-  const hooks = [
-    `Wait! Something amazing is about to happen with ${idea.toLowerCase()}!`,
-    `What happens when ${idea.toLowerCase()}? Let's find out!`,
-    `Come with us on a tiny adventure: ${idea.toLowerCase()}!`,
-    `Look closely... something magical is about to happen!`
+function buildScenes(idea, count, style, includeVoice) {
+  const templates = [
+    { action: `Open on the main subject noticing the key idea: ${idea}.`, camera: "Gentle cinematic push-in; keep the subject centered.", emotion: "Curious", environment: "Bright, uncluttered setting with soft light.", voiceover: "Look closely... something is about to happen!" },
+    { action: `The subject moves toward the discovery and investigates ${idea}.`, camera: "Smooth tracking shot matching the subject's movement.", emotion: "Playful", environment: "Colorful environment with one clear visual focus.", voiceover: "Let's take a closer look!" },
+    { action: `Reveal the most interesting part of ${idea} with a clear visual reaction.`, camera: "Medium shot into a gentle close-up on the discovery.", emotion: "Surprised", environment: "Warm, magical details without visual clutter.", voiceover: "Wow! Look what we found!" },
+    { action: `The subject interacts with the discovery and demonstrates what is happening in ${idea}.`, camera: "Stable side angle followed by a small push-in.", emotion: "Fascinated", environment: "Friendly setting with consistent props and lighting.", voiceover: "We're learning something amazing!" },
+    { action: `Introduce a tiny challenge connected to ${idea}; make the goal instantly understandable.`, camera: "Brief wider shot, then close on the character's reaction.", emotion: "Excited", environment: "Energetic but readable composition.", voiceover: "Oh! What happens next?" },
+    { action: `The subject solves the challenge and celebrates the discovery.`, camera: "Slow pull-back to reveal the complete scene.", emotion: "Joyful", environment: "Cheerful bright setting with gentle glow.", voiceover: "We did it! That was amazing!" },
+    { action: `Give the audience a memorable final look at ${idea}.`, camera: "Friendly front-facing shot with a subtle push-in.", emotion: "Warm", environment: "Clean background with strong subject separation.", voiceover: "What a wonderful discovery!" },
+    { action: `End with a simple visual payoff and a wave goodbye.`, camera: "Wide ending shot, then a slow cinematic pull-back.", emotion: "Happy", environment: "Peaceful colorful environment with soft light.", voiceover: "See you on our next adventure!" }
   ];
 
-  return hooks[Math.floor(Math.random() * hooks.length)];
-}
-
-
-function buildScript(idea, scenes) {
-  let script = "";
-
-  script += `Come along on a fun adventure! `;
-
-  script += `Today, we're discovering ${idea.toLowerCase()}. `;
-
-  scenes.forEach((scene, index) => {
-    if (index === 0) {
-      script += `${scene.voiceover} `;
-    } else {
-      script += `${scene.voiceover} `;
-    }
-  });
-
-  script += `And that's our adventure! What should we discover next?`;
-
-  return script;
-}
-
-
-/* =========================
-   SCENE ENGINE
-========================= */
-
-function buildScenes(idea, sceneCount, style) {
-
-  const sceneTemplates = [
-
-    {
-      action:
-        `Open with the main subject noticing something unusual connected to ${idea}.`,
-      camera:
-        "Slow cinematic push-in toward the main subject.",
-      emotion:
-        "Curious and excited.",
-      environment:
-        "Bright, colorful environment with soft lighting.",
-      voiceover:
-        `Look! Something interesting is happening!`
-    },
-
-    {
-      action:
-        `The main subject moves closer and investigates ${idea}.`,
-      camera:
-        "Gentle tracking shot following the character.",
-      emotion:
-        "Curious and playful.",
-      environment:
-        "Colorful surroundings with small visual details to discover.",
-      voiceover:
-        `Let's take a closer look!`
-    },
-
-    {
-      action:
-        `The main subject discovers an important part of ${idea} and reacts with surprise.`,
-      camera:
-        "Medium shot followed by a gentle zoom toward the discovery.",
-      emotion:
-        "Surprised and delighted.",
-      environment:
-        "Bright magical environment with soft glowing details.",
-      voiceover:
-        `Wow! Look what we found!`
-    },
-
-    {
-      action:
-        `The main subject interacts with the discovery and learns something new about ${idea}.`,
-      camera:
-        "Smooth side-to-side camera movement showing the interaction.",
-      emotion:
-        "Happy and fascinated.",
-      environment:
-        "Warm colorful setting with playful background elements.",
-      voiceover:
-        `We're learning something amazing!`
-    },
-
-    {
-      action:
-        `A small unexpected moment happens, creating a fun challenge involving ${idea}.`,
-      camera:
-        "Quick but gentle camera movement followed by a close-up reaction.",
-      emotion:
-        "Excited and playful.",
-      environment:
-        "Energetic colorful environment with clear visual storytelling.",
-      voiceover:
-        `Oh! What happens next?`
-    },
-
-    {
-      action:
-        `The main subject solves the tiny challenge and celebrates the discovery.`,
-      camera:
-        "Camera slowly pulls back to reveal the whole scene.",
-      emotion:
-        "Proud, joyful and excited.",
-      environment:
-        "Beautiful bright setting with a cheerful atmosphere.",
-      voiceover:
-        `We did it! That was amazing!`
-    },
-
-    {
-      action:
-        `The main subject shares the discovery with the audience.`,
-      camera:
-        "Friendly front-facing camera shot with a gentle push-in.",
-      emotion:
-        "Warm and happy.",
-      environment:
-        "Clean colorful background designed for children.",
-      voiceover:
-        `What a wonderful discovery!`
-    },
-
-    {
-      action:
-        `The adventure reaches its happiest moment as the main subject enjoys ${idea}.`,
-      camera:
-        "Wide cinematic shot revealing the complete environment.",
-      emotion:
-        "Joyful and amazed.",
-      environment:
-        "Magical colorful environment with soft glowing light.",
-      voiceover:
-        `This adventure was so much fun!`
-    },
-
-    {
-      action:
-        `The main subject waves goodbye after completing the adventure.`,
-      camera:
-        "Slow pull-back ending shot.",
-      emotion:
-        "Happy and peaceful.",
-      environment:
-        "Warm colorful environment with gentle light.",
-      voiceover:
-        `See you on our next adventure!`
-    },
-
-    {
-      action:
-        `Finish with a memorable visual moment connected to ${idea}.`,
-      camera:
-        "Slow cinematic reveal ending on the main subject.",
-      emotion:
-        "Happy and satisfied.",
-      environment:
-        "Bright magical setting with a cheerful ending.",
-      voiceover:
-        `Until next time, keep discovering!`
-    }
-
-  ];
-
-  const scenes = [];
-
-  for (let i = 0; i < sceneCount; i++) {
-
-    const template =
-      sceneTemplates[i % sceneTemplates.length];
-
-    const start = i * 5;
+  return Array.from({ length: count }, (_, index) => {
+    const t = templates[index % templates.length];
+    const start = index * 5;
     const end = start + 5;
-
-    scenes.push({
-      number: i + 1,
-      start,
-      end,
-      action: template.action,
-      camera: template.camera,
-      emotion: template.emotion,
-      environment: template.environment,
-      voiceover: template.voiceover,
-
-      imagePrompt:
-        `${style}, high-quality polished animation, vertical 9:16 composition, consistent main character design, consistent clothing and appearance, ${template.environment} ${template.action} Camera composition: ${template.camera} Emotion: ${template.emotion}. Clear subject, appealing children's visual storytelling, no text, no watermark.`,
-
-      videoPrompt:
-        `${template.action} ${template.camera} Character emotion: ${template.emotion}. Natural smooth movement, gentle animation, stable character appearance, consistent environment, child-friendly visual storytelling, polished ${style} animation, vertical 9:16 video, 5 seconds.`
-    });
-  }
-
-  return scenes;
-}
-
-
-/* =========================
-   SCENE DISPLAY
-========================= */
-
-function renderScenes(scenes) {
-
-  const container = document.getElementById("scenes");
-
-  container.innerHTML = "";
-
-  scenes.forEach(scene => {
-
-    const sceneElement = document.createElement("div");
-
-    sceneElement.className = "scene";
-
-    sceneElement.innerHTML = `
-
-      <h4>
-        Scene ${scene.number} — ${scene.start}s–${scene.end}s
-      </h4>
-
-      <strong>🎬 Action</strong>
-      <p>${escapeHTML(scene.action)}</p>
-
-      <strong>📷 Camera</strong>
-      <p>${escapeHTML(scene.camera)}</p>
-
-      <strong>🎭 Emotion</strong>
-      <p>${escapeHTML(scene.emotion)}</p>
-
-      <strong>🎨 Image Prompt</strong>
-
-      <div class="prompt-box">
-        <p>${escapeHTML(scene.imagePrompt)}</p>
-        <button
-          class="copy-button"
-          onclick="copyText(this)"
-          data-copy="${escapeHTML(scene.imagePrompt)}"
-        >
-          📋 Copy Image Prompt
-        </button>
-      </div>
-
-      <strong>🎥 Video Prompt</strong>
-
-      <div class="prompt-box">
-        <p>${escapeHTML(scene.videoPrompt)}</p>
-        <button
-          class="copy-button"
-          onclick="copyText(this)"
-          data-copy="${escapeHTML(scene.videoPrompt)}"
-        >
-          📋 Copy Video Prompt
-        </button>
-      </div>
-
-      <strong>🎙 Voiceover</strong>
-      <p>${escapeHTML(scene.voiceover)}</p>
-
-    `;
-
-    container.appendChild(sceneElement);
+    const continuity = "Keep the same character identity, clothing, proportions, props, lighting direction and environment across every shot.";
+    return {
+      number: index + 1, start, end, action: t.action, camera: t.camera, emotion: t.emotion,
+      environment: t.environment, voiceover: includeVoice ? t.voiceover : "",
+      imagePrompt: `${style}; vertical 9:16; ${t.environment} ${t.action} Camera: ${t.camera} Emotion: ${t.emotion}. ${continuity} High visual consistency, child-friendly, polished, clear silhouette, no text, no watermark.`,
+      videoPrompt: `${t.action} ${t.camera} ${continuity} Natural smooth movement, stable framing, consistent appearance, subtle expressive motion, 5 seconds, vertical 9:16, no text, no watermark.`
+    };
   });
 }
-
-
-/* =========================
-   COPY TOOL
-========================= */
-
-function copyText(button) {
-
-  const text = button.getAttribute("data-copy");
-
-  navigator.clipboard.writeText(text)
-    .then(() => {
-
-      const original = button.textContent;
-
-      button.textContent = "✅ Copied!";
-
-      setTimeout(() => {
-        button.textContent = original;
-      }, 1500);
-
-    })
-    .catch(() => {
-      alert("Copy failed. Please select the text manually.");
-    });
-}
-
-
-/* =========================
-   VIDEO SCORE
-========================= */
 
 function calculateScore(idea, type, style) {
-
-  let score = 82;
-
-  if (idea.length >= 15) score += 3;
-
-  if (idea.length >= 30) score += 2;
-
-  if (type === "YouTube Short") score += 3;
-
-  if (
-    style === "Kids 3D Animation" ||
-    style === "Cartoon"
-  ) {
-    score += 3;
-  }
-
-  score += Math.floor(Math.random() * 5);
-
-  return Math.min(score, 99);
+  let score = 72;
+  if (idea.length >= 25) score += 7;
+  if (idea.length >= 60) score += 4;
+  if (type === "YouTube Short" || type === "Instagram Reel" || type === "TikTok") score += 5;
+  if (["Kids 3D Animation", "Cartoon", "Storybook"].includes(style)) score += 5;
+  if (/who|how|why|discover|learn|secret|surprise/i.test(idea)) score += 4;
+  return Math.min(97, score);
 }
 
+function createTitle(idea, type) {
+  const clean = idea.replace(/[.!?]+$/g, "").trim();
+  if (type === "Educational Video") return `Learn Something Amazing: ${clean} 📚`;
+  return `${clean} ✨ | A Tiny Adventure`;
+}
 
-/* =========================
-   TITLE ENGINE
-========================= */
+function createDescription(idea, type, cta) {
+  const base = `A fun ${type.toLowerCase()} about ${idea.toLowerCase()}. Short, simple and designed for clear visual storytelling.`;
+  return cta ? `${base} Follow for more creative adventures and new stories.` : base;
+}
 
-function createTitle(idea) {
+function createHashtags(idea, type) {
+  const tags = new Set(["#AIVideo", "#Shorts"]);
+  if (/kids|baby|bear|child|rainbow|cartoon/i.test(idea)) ["#Kids", "#Animation", "#KidsContent"].forEach((x) => tags.add(x));
+  if (type === "Educational Video") tags.add("#LearnWithMe");
+  if (type === "TikTok") tags.add("#TikTok");
+  if (type === "Instagram Reel") tags.add("#Reels");
+  return [...tags].join(" ");
+}
 
-  const cleanIdea = idea
-    .replace(/[.!?]/g, "")
-    .trim();
-
-  const titlePatterns = [
-    `${cleanIdea} 🌈✨`,
-    `The Amazing Adventure: ${cleanIdea} 🚀`,
-    `Let's Discover ${cleanIdea}! 🎬`,
-    `${cleanIdea} | Fun Kids Adventure 🌟`
-  ];
-
-  return titlePatterns[
-    Math.floor(Math.random() * titlePatterns.length)
+function makeIdeaList(idea) {
+  const base = idea.replace(/[.!?]+$/g, "").trim();
+  return [
+    `A surprising twist on ${base}`,
+    `The tiny hero's biggest challenge: ${base}`,
+    `What happens next? ${base}`,
+    `A funny mistake while exploring ${base}`,
+    `A simple lesson hidden inside ${base}`,
+    `A magical version of ${base}`,
+    `A friendship adventure inspired by ${base}`,
+    `The secret behind ${base}`,
+    `A 30-second challenge based on ${base}`,
+    `The happiest ending for ${base}`
   ];
 }
 
+function renderBlueprint(data) {
+  $("videoSummary").textContent = `${data.type} • ${data.length}s • ${data.style} • ${data.scenes.length} shots`;
+  $("resultTitle").textContent = data.title;
+  $("hook").textContent = data.hook;
+  $("script").textContent = data.script;
+  $("score").textContent = data.score;
+  $("sceneCountBadge").textContent = `${data.scenes.length} × 5s shots`;
+  $("title").textContent = data.title;
+  $("description").textContent = data.description;
+  $("hashtags").textContent = data.hashtags;
+  $("ideaList").innerHTML = data.ideas.map((idea, i) => `<div class="idea-item"><b>${i + 1}.</b> ${escapeHTML(idea)}</div>`).join("");
 
-/* =========================
-   10 MORE IDEAS
-========================= */
-
-function makeMore() {
-
-  const idea = document.getElementById("idea").value.trim();
-
-  if (!idea) {
-    alert("Enter an idea first.");
-    return;
-  }
-
-  const ideas = [
-
-    `A surprising discovery involving ${idea}`,
-
-    `A tiny hero's adventure with ${idea}`,
-
-    `The magical mystery behind ${idea}`,
-
-    `A funny challenge involving ${idea}`,
-
-    `Learning something new through ${idea}`,
-
-    `A colorful journey inspired by ${idea}`,
-
-    `A friendship adventure involving ${idea}`,
-
-    `The unexpected surprise hidden inside ${idea}`,
-
-    `A brave little character explores ${idea}`,
-
-    `The most exciting ${idea} adventure ever`
-
-  ];
-
-  const message =
-    "10 NEW VIDEO IDEAS\n\n" +
-    ideas
-      .map((item, index) => `${index + 1}. ${item}`)
-      .join("\n\n");
-
-  alert(message);
+  $("scenes").innerHTML = data.scenes.map((scene) => `
+    <div class="scene">
+      <div class="scene-head"><h4>Scene ${scene.number}</h4><span class="timing">${scene.start}s–${scene.end}s</span></div>
+      <div class="scene-meta">
+        <div><strong>Action</strong><p>${escapeHTML(scene.action)}</p></div>
+        <div><strong>Camera</strong><p>${escapeHTML(scene.camera)}</p></div>
+        <div><strong>Emotion</strong><p>${escapeHTML(scene.emotion)}</p></div>
+      </div>
+      <strong>Image prompt</strong><div class="prompt-box"><p>${escapeHTML(scene.imagePrompt)}</p><button class="copy-button" type="button" data-copy-value="${escapeHTML(scene.imagePrompt)}">📋 Copy</button></div>
+      <strong>Video prompt</strong><div class="prompt-box"><p>${escapeHTML(scene.videoPrompt)}</p><button class="copy-button" type="button" data-copy-value="${escapeHTML(scene.videoPrompt)}">📋 Copy</button></div>
+      ${scene.voiceover ? `<strong>Voiceover</strong><p>${escapeHTML(scene.voiceover)}</p>` : ""}
+    </div>`).join("");
 }
 
+function blueprintText(data) {
+  return [
+    "AI VIDEO MAKER — VIDEO BLUEPRINT", "=================================", "",
+    `IDEA: ${data.idea}`, `TYPE: ${data.type}`, `LENGTH: ${data.length} seconds`, `STYLE: ${data.style}`, `SCORE: ${data.score}/100`, "",
+    `HOOK: ${data.hook}`, `SCRIPT: ${data.script}`, "", "SCENES", "======", "",
+    ...data.scenes.flatMap((s) => [`SCENE ${s.number} — ${s.start}s–${s.end}s`, `ACTION: ${s.action}`, `CAMERA: ${s.camera}`, `EMOTION: ${s.emotion}`, `IMAGE PROMPT: ${s.imagePrompt}`, `VIDEO PROMPT: ${s.videoPrompt}`, s.voiceover ? `VOICEOVER: ${s.voiceover}` : "", ""]),
+    "PUBLISHING", "==========", `TITLE: ${data.title}`, `DESCRIPTION: ${data.description}`, `HASHTAGS: ${data.hashtags}`
+  ].join("\n");
+}
 
-/* =========================
-   DOWNLOAD BLUEPRINT
-========================= */
+function downloadFile(name, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url; link.download = name; link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 function downloadBlueprint() {
-
-  if (!window.currentBlueprint) {
-    alert("Create a video first.");
-    return;
-  }
-
-  const data = window.currentBlueprint;
-
-  let text = "";
-
-  text += "AI VIDEO MAKER — VIDEO BLUEPRINT\n";
-  text += "=================================\n\n";
-
-  text += `IDEA:\n${data.idea}\n\n`;
-
-  text += `TYPE:\n${data.type}\n\n`;
-
-  text += `LENGTH:\n${data.length} seconds\n\n`;
-
-  text += `STYLE:\n${data.style}\n\n`;
-
-  text += `SCORE:\n${data.score}/100\n\n`;
-
-  text += `HOOK:\n${data.hook}\n\n`;
-
-  text += `SCRIPT:\n${data.script}\n\n`;
-
-  text += "SCENES\n======\n\n";
-
-  data.scenes.forEach(scene => {
-
-    text += `SCENE ${scene.number} — ${scene.start}s–${scene.end}s\n\n`;
-
-    text += `ACTION:\n${scene.action}\n\n`;
-
-    text += `CAMERA:\n${scene.camera}\n\n`;
-
-    text += `EMOTION:\n${scene.emotion}\n\n`;
-
-    text += `IMAGE PROMPT:\n${scene.imagePrompt}\n\n`;
-
-    text += `VIDEO PROMPT:\n${scene.videoPrompt}\n\n`;
-
-    text += `VOICEOVER:\n${scene.voiceover}\n\n`;
-
-    text += "---------------------------------\n\n";
-  });
-
-  const blob = new Blob([text], {
-    type: "text/plain"
-  });
-
-  const url = URL.createObjectURL(blob);
-
-  const link = document.createElement("a");
-
-  link.href = url;
-
-  link.download = "ai-video-blueprint.txt";
-
-  link.click();
-
-  URL.revokeObjectURL(url);
+  if (!currentBlueprint) return showToast("Create a blueprint first.");
+  downloadFile("ai-video-blueprint.txt", blueprintText(currentBlueprint), "text/plain;charset=utf-8");
 }
+
+function downloadJSON() {
+  if (!currentBlueprint) return showToast("Create a blueprint first.");
+  downloadFile("ai-video-blueprint.json", JSON.stringify(currentBlueprint, null, 2), "application/json;charset=utf-8");
+}
+
+async function copyAll() {
+  if (!currentBlueprint) return showToast("Create a blueprint first.");
+  try { await navigator.clipboard.writeText(blueprintText(currentBlueprint)); showToast("Blueprint copied."); }
+  catch { showToast("Copy unavailable in this browser."); }
+}
+
+async function copyValue(value) {
+  try { await navigator.clipboard.writeText(value); showToast("Copied."); }
+  catch { showToast("Copy unavailable in this browser."); }
+}
+
+function regenerate() {
+  if (!currentBlueprint) return showToast("Create a blueprint first.");
+  createVideo();
+}
+
+function init() {
+  const idea = $("idea");
+  idea.addEventListener("input", () => { $("charCount").textContent = `${idea.value.length} / 500`; });
+  $("exampleBtn").addEventListener("click", () => { idea.value = EXAMPLE_IDEA; idea.dispatchEvent(new Event("input")); idea.focus(); });
+  $("createBtn").addEventListener("click", createVideo);
+  $("downloadTxtBtn").addEventListener("click", downloadBlueprint);
+  $("downloadJsonBtn").addEventListener("click", downloadJSON);
+  $("copyAllBtn").addEventListener("click", copyAll);
+  $("regenerateBtn").addEventListener("click", regenerate);
+  document.addEventListener("click", (event) => {
+    const copyButton = event.target.closest("[data-copy-value]");
+    if (copyButton) copyValue(copyButton.getAttribute("data-copy-value"));
+    const tiny = event.target.closest("[data-copy-target]");
+    if (tiny) copyValue($(tiny.dataset.copyTarget).textContent);
+  });
+  document.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") { event.preventDefault(); createVideo(); }
+  });
+}
+
+document.addEventListener("DOMContentLoaded", init);
