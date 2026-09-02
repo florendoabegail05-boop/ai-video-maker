@@ -2,20 +2,13 @@
 /**
  * AI Video Maker — zero-cost local media bridge
  *
- * This process is intentionally bound to loopback only. It does not execute
- * shell commands and it never accepts arbitrary destination URLs from the browser.
- * Instead, each media kind can be forwarded to a locally configured runner.
- *
- * Environment variables:
- *   AIVM_PORT=8787
- *   AIVM_IMAGE_RUNNER=http://127.0.0.1:8188/image
- *   AIVM_VIDEO_RUNNER=http://127.0.0.1:8188/video
- *   AIVM_VOICE_RUNNER=http://127.0.0.1:8188/voice
- *   AIVM_AUDIO_RUNNER=http://127.0.0.1:8188/audio
- *   AIVM_MOCK=1  (contract testing only; never produces real media)
+ * Bound to loopback only. Generation is forwarded only to explicitly
+ * configured localhost runners. Assembly uses a fixed FFmpeg executable and
+ * accepts only files inside AIVM_MEDIA_ROOT.
  */
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
+import { assemble } from './assembler.mjs';
 
 const HOST = '127.0.0.1';
 const PORT = Number(process.env.AIVM_PORT || 8787);
@@ -73,15 +66,8 @@ function runnerFor(kind) {
 
 async function forward(kind, request) {
   const runner = runnerFor(kind);
-  if (!runner) {
-    return { status: 503, body: { status: 'unavailable', kind, error: `No safe local ${kind} runner configured.`, hint: `Set AIVM_${kind.toUpperCase()}_RUNNER to a localhost HTTP endpoint.` } };
-  }
-
-  const response = await fetch(runner, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ ...request, requestId: request.requestId || randomUUID(), kind })
-  });
+  if (!runner) return { status: 503, body: { status: 'unavailable', kind, error: `No safe local ${kind} runner configured.`, hint: `Set AIVM_${kind.toUpperCase()}_RUNNER to a localhost HTTP endpoint.` } };
+  const response = await fetch(runner, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...request, requestId: request.requestId || randomUUID(), kind }) });
   const text = await response.text();
   let body;
   try { body = JSON.parse(text); } catch { body = { status: response.ok ? 'completed' : 'failed', raw: text.slice(0, 10000) }; }
@@ -91,14 +77,17 @@ async function forward(kind, request) {
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') return json(res, 204, {});
   if (req.method === 'GET' && req.url === '/health') {
-    return json(res, 200, {
-      ok: true,
-      service: 'aivm-local-bridge',
-      version: 1,
-      loopbackOnly: true,
-      mock: process.env.AIVM_MOCK === '1',
-      runners: Object.fromEntries(Object.entries(RUNNERS).map(([k, v]) => [k, !!runnerFor(k)]))
-    });
+    return json(res, 200, { ok: true, service: 'aivm-local-bridge', version: 2, loopbackOnly: true, mock: process.env.AIVM_MOCK === '1', ffmpeg: process.env.AIVM_FFMPEG || 'ffmpeg', runners: Object.fromEntries(Object.entries(RUNNERS).map(([k, v]) => [k, !!runnerFor(k)])) });
+  }
+
+  if (req.method === 'POST' && req.url === '/v1/assemble') {
+    try {
+      const request = await readJson(req);
+      const result = await assemble(request.clips, request);
+      return json(res, 200, result);
+    } catch (error) {
+      return json(res, error.status || 502, { status: 'failed', error: error.message || 'Assembly failed.' });
+    }
   }
 
   const match = req.method === 'POST' && /^\/v1\/generate\/(image|video|voice|audio)$/.exec(req.url || '');
@@ -107,20 +96,17 @@ const server = http.createServer(async (req, res) => {
     try {
       const request = await readJson(req);
       if (!request.prompt && !request.text && !request.input) return json(res, 400, { status: 'invalid', error: 'A prompt, text, or input is required.' });
-      if (process.env.AIVM_MOCK === '1') {
-        return json(res, 200, { status: 'completed', mock: true, kind, requestId: request.requestId || randomUUID(), asset: null, note: 'Mock contract response only; no media was generated.' });
-      }
+      if (process.env.AIVM_MOCK === '1') return json(res, 200, { status: 'completed', mock: true, kind, requestId: request.requestId || randomUUID(), asset: null, note: 'Mock contract response only; no media was generated.' });
       const result = await forward(kind, request);
       return json(res, result.status, result.body);
     } catch (error) {
       return json(res, error.status || 502, { status: 'failed', error: error.message || 'Local runner request failed.' });
     }
   }
-
   return json(res, 404, { status: 'not_found' });
 });
 
 server.listen(PORT, HOST, () => {
   console.log(`AI Video Maker local bridge listening on http://${HOST}:${PORT}`);
-  console.log('No shell execution. No public network binding.');
+  console.log('Loopback only. No arbitrary shell execution.');
 });
