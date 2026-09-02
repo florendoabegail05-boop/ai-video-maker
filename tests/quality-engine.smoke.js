@@ -4,29 +4,18 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 
 const source = fs.readFileSync("quality-engine.js", "utf8");
-const sandbox = {
-  window: {},
-  document: { readyState: "loading", addEventListener() {} },
-  localStorage: { getItem() { return null; }, setItem() {} },
-  console
-};
+const sandbox = { window: {}, document: { readyState: "loading", addEventListener() {} }, localStorage: { getItem() { return null; }, setItem() {} }, console };
 vm.runInNewContext(source, sandbox, { filename: "quality-engine.js" });
 const director = sandbox.window.AIVMQualityDirector;
 assert.equal(director.version, 4);
 
-const state = {
-  profiles: {
-    character: { name: "Milo", description: "A small friendly bear", age: "10 months", traits: "curious", wardrobe: "blue shirt" },
-    environment: { name: "Rainbow World", description: "soft green hills", details: "colorful flowers", lighting: "soft morning light", props: "yellow bag" },
-    style: { name: "Kids 3D Animation", description: "polished child-friendly 3D", palette: "bright harmonious", camera: "gentle cinematic", rules: "stable design, no text, no watermark" }
-  }
-};
+const state = { profiles: { character: { name: "Milo", description: "A small friendly bear", age: "10 months", traits: "curious", wardrobe: "blue shirt" }, environment: { name: "Rainbow World", description: "soft green hills", details: "colorful flowers", lighting: "soft morning light", props: "yellow bag" }, style: { name: "Kids 3D Animation", description: "polished child-friendly 3D", palette: "bright harmonious", camera: "gentle cinematic", rules: "stable design, no text, no watermark" } } };
 const project = { idea: "A baby bear wants to reach a glowing rainbow flower but a tiny stream blocks the path", type: "YouTube Short", length: 30, style: "Kids 3D Animation", includeCta: true, includeVoice: true };
 const blueprint = director.make(project, state);
 
 assert.equal(blueprint.version, 4);
 assert.equal(blueprint.scenes.length, 6);
-assert.deepEqual(blueprint.scenes.map(s => s.role), ["HOOK", "SETUP", "DESIRE", "OBSTACLE", "PAYOFF", "ENDING"]);
+assert.equal(JSON.stringify(blueprint.scenes.map(s => s.role)), JSON.stringify(["HOOK", "SETUP", "DESIRE", "OBSTACLE", "PAYOFF", "ENDING"]));
 assert.equal(blueprint.scenes[0].start, 0);
 assert.equal(blueprint.scenes[5].end, 30);
 assert.ok(blueprint.scenes.every(s => s.imagePrompt.includes("Character anchor:")));
