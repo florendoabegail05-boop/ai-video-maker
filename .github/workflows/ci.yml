@@ -39,6 +39,8 @@ jobs:
         run: node tests/hardware-routing.smoke.js
       - name: Creator Director smoke tests
         run: node tests/creator-director.smoke.js
+      - name: Automatic production smoke tests
+        run: node tests/automatic-production.smoke.js
       - name: Local bridge contract smoke test
         run: |
           AIVM_MOCK=1 node local-bridge/server.mjs > /tmp/aivm-bridge.log 2>&1 &
@@ -73,11 +75,13 @@ jobs:
           test -f media-engine/contracts.js
           test -f media-engine/pipeline.js
           test -f media-engine/providers.js
+          test -f movie-engine/automatic-production.js
           test -f tests/quality-engine.smoke.js
           test -f tests/future-proof.smoke.js
           test -f tests/media-engine.smoke.js
           test -f tests/hardware-routing.smoke.js
           test -f tests/creator-director.smoke.js
+          test -f tests/automatic-production.smoke.js
           test -f local-bridge/server.mjs
           test -f local-bridge/assembler.mjs
           test -f local-bridge/hardware-diagnostics.mjs
@@ -85,7 +89,8 @@ jobs:
       - name: Verify local-first frontend
         run: |
           if grep -RniE 'api[_-]?key|client[_-]?secret|access[_-]?token' --exclude-dir=.git --exclude-dir=local-bridge --exclude='*.md' .; then exit 1; fi
-          if grep -nE 'https?://' app.js quality-engine.js production-pipeline.js register-sw.js sw.js provider-registry.js app-config.js media-engine/*.js movie-engine/*.js; then exit 1; fi
+          if grep -nE 'https?://' app.js quality-engine.js production-pipeline.js register-sw.js sw.js provider-registry.js app-config.js media-engine/*.js movie-engine/*.js | grep -v 'automatic-production.js'; then exit 1; fi
+          if grep -nE 'https?://' movie-engine/automatic-production.js | grep -v 'http://127.0.0.1:8787'; then exit 1; fi
           if grep -nE 'https?://' local-generation.js hardware-diagnostics.js | grep -v 'http://127.0.0.1:8787'; then exit 1; fi
       - name: Verify strict CSP and no inline styling hooks
         run: |
