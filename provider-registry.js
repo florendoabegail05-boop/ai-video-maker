@@ -39,8 +39,9 @@
     if (!allowedKinds.has(kind)) throw new Error("Unsupported generation kind.");
     const provider = get(input?.providerId);
     if (!provider || !provider.enabled || !provider.kinds.includes(kind)) throw new Error("Provider is not available for this job.");
+    const webCrypto = typeof globalThis !== "undefined" ? globalThis.crypto : undefined;
     return Object.freeze({
-      schemaVersion: 1, jobId: crypto?.randomUUID?.() || `job-${Date.now()}`,
+      schemaVersion: 1, jobId: webCrypto?.randomUUID?.() || `job-${Date.now()}`,
       providerId: provider.id, kind, prompt: clean(input?.prompt), sourceAsset: clean(input?.sourceAsset),
       createdAt: new Date().toISOString()
     });
