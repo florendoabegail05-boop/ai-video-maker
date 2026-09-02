@@ -10,6 +10,8 @@
   <link rel="manifest" href="manifest.webmanifest">
   <title>AI Video Maker — Creator Studio</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="quality.css">
+  <link rel="stylesheet" href="pipeline.css">
   <script src="app.js" defer></script>
   <script src="quality-engine.js" defer></script>
   <script src="production-pipeline.js" defer></script>
@@ -45,8 +47,8 @@
     <div class="result-header"><div><div class="eyebrow">BLUEPRINT</div><h2 id="resultTitle">Video blueprint</h2><p id="videoSummary"></p></div><div class="score-wrap"><div class="score"><span id="score">--</span><small>/100</small></div><span>Creator score</span></div></div>
     <div class="action-bar"><button id="copyAllBtn" class="secondary-button" type="button">📋 Copy all</button><button id="downloadTxtBtn" class="secondary-button" type="button">↓ TXT</button><button id="downloadJsonBtn" class="secondary-button" type="button">↓ JSON</button><button id="duplicateBtn" class="secondary-button" type="button">⧉ Duplicate</button><button id="regenerateBtn" class="secondary-button" type="button">↻ Regenerate</button></div>
     <div class="result-grid"><article class="result-section highlight"><div class="section-label">HOOK</div><h3 id="hook"></h3></article><article class="result-section"><div class="section-label">SCRIPT</div><p id="script" class="long-text"></p></article></div>
-    <div class="result-section scenes-section"><div class="section-top"><div><div class="section-label">SHOT LIST</div><h3>Edit, reorder and refine scenes</h3></div><span id="sceneCountBadge" class="badge"></span></div><p class="helper">Each 5-second shot now has a clear story purpose, continuity lock, camera direction, motion direction, image prompt, video prompt and audio direction.</p><div id="scenes"></div></div>
-    <div class="result-grid publishing-grid"><article class="result-section"><div class="section-label">PUBLISHING</div><h3>Ready to post</h3><div class="copy-field"><b>Title</b><p id="title"></p><button class="tiny-copy" data-copy-target="title" type="button">Copy</button></div><div class="copy-field"><b>Description</b><p id="description"></p><button class="tiny-copy" data-copy-target="description" type="button">Copy</button></div><div class="copy-field"><b>Hashtags</b><p id="hashtags"></p><button class="tiny-copy" data-copy-target="hashtags" type="button">Copy</button></div></article><article class="result-section"><div class="section-label">NEXT IDEAS</div><h3>10 variations</h3><div id="ideaList" class="idea-list"></div></article></div>
+    <div class="result-section scenes-section"><div class="section-top"><div><div class="section-label">SHOT LIST</div><h3>Edit, reorder and refine scenes</h3></div><span id="sceneCountBadge" class="badge"></span></div><p class="helper">Each shot has a story purpose, continuity state, camera direction, motion direction, image prompt, video prompt and audio direction.</p><div id="scenes"></div></div>
+    <div class="result-grid publishing-grid"><article class="result-section"><div class="section-label">PUBLISHING</div><h3>Ready to post</h3><div class="copy-field"><b>Title</b><p id="title"></p><button class="tiny-copy" data-copy-target="title" type="button">Copy</button></div><div class="copy-field"><b>Description</b><p id="description"></p><button class="tiny-copy" data-copy-target="description" type="button">Copy</button></div><div class="copy-field"><b>Hashtags</b><p id="hashtags"></p><button class="tiny-copy" data-copy-target="hashtags" type="button">Copy</button></div></article><article class="result-section"><div class="section-label">NEXT IDEAS</div><h3>Shot opportunities</h3><div id="ideaList" class="idea-list"></div></article></div>
   </section>
 </section>
 </section>
