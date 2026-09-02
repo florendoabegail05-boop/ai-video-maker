@@ -23,10 +23,10 @@ assert.equal(job.jobId, "test-job-id");
 assert.throws(() => context.window.AIVM_PROVIDERS.createJob({ providerId: "test-video", kind: "image" }), /not available/);
 
 const html = fs.readFileSync("index.html", "utf8");
-for (const asset of ["app-config.js", "provider-registry.js", "app.js", "quality-engine.js", "production-pipeline.js"]) {
+for (const asset of ["app-config.js", "provider-registry.js", "app.js", "quality-engine.js", "production-pipeline.js", "local-generation.js"]) {
   assert.match(html, new RegExp(`<script src=[\"']${asset.replace(/[-.]/g, "\\$&")}['\"] defer>`));
 }
-assert.match(html, /connect-src 'none'/);
+assert.match(html, /connect-src 'self' http:\/\/127\.0\.0\.1:8787 http:\/\/localhost:8787/);
 assert.doesNotMatch(html, /<script\s*>/i);
 assert.doesNotMatch(html, /style\s*=/i);
 console.log("future-proof foundation smoke tests passed");

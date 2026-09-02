@@ -17,10 +17,13 @@ A zero-cost, local-first video production studio designed to grow from Shorts to
 - TXT and JSON export
 - Responsive mobile-friendly interface
 - Installable/offline-ready PWA foundation
+- Local/open-source media adapter contracts for image, video, voice and audio
+- Secure loopback generation bridge with no browser-side API keys
+- Shot-by-shot generation controls with persisted generation state
 
 ## Long-form foundation
 
-The repository now includes a provider-neutral movie engine foundation for projects from short videos through feature-length productions. The target workflow is:
+The repository includes a provider-neutral movie engine foundation for projects from short videos through feature-length productions. The target workflow is:
 
 **IDEA → STORY BIBLE → ACTS → SEQUENCES → SCENES → SHOTS → ASSETS → ASSEMBLY → QC → MASTER**
 
@@ -30,17 +33,33 @@ The movie layer includes versioned contracts, long-form story planning, persiste
 
 The core product remains usable as a static HTML + CSS + vanilla JavaScript application with no paid API, framework, database or build step required. Planning, contracts and validation run locally in the browser.
 
-Actual high-quality AI generation may require local compute or an optional external provider. Providers are adapters rather than application dependencies, so a future open/local model can replace a hosted provider without changing the project format or story engine.
+For actual generation, the app can connect to a **loopback-only local bridge** at `127.0.0.1:8787`. The bridge forwards requests only to explicitly configured localhost runners. This keeps secrets and model-specific integrations out of the browser and lets the same app work with different local/open-source runners.
+
+Start the bridge with Node.js 18+:
+
+```bash
+node local-bridge/server.mjs
+```
+
+For a contract-only test without models:
+
+```bash
+AIVM_MOCK=1 node local-bridge/server.mjs
+```
+
+Then use **Test bridge** inside the app. Mock mode proves the browser-to-bridge contract but does not generate real media.
 
 ## Security principles
 
 - No secrets or API keys in frontend code.
 - Secret-bearing providers belong behind a trusted server/worker boundary.
 - No third-party scripts, fonts, analytics or trackers by default.
-- Content Security Policy remains restrictive.
+- Content Security Policy allows only the explicit loopback bridge in addition to same-origin resources.
 - User content is escaped before generated HTML insertion.
 - Local project data stays under user control unless explicitly exported.
-- Provider endpoints must use HTTPS.
+- The bridge accepts only localhost HTTP runner destinations.
+- The bridge never executes arbitrary shell commands.
+- JSON request bodies are size-limited.
 - Media jobs support idempotency/checkpoints so retries do not require destructive regeneration.
 - CI and CodeQL validate changes before production branches are updated.
 
@@ -50,22 +69,18 @@ Actual high-quality AI generation may require local compute or an optional exter
 
 Quality scores are diagnostics; deterministic contract validation is the release gate.
 
-## Future media stack
-
-Provider-neutral capabilities are planned for image, video, voice, music/audio, SFX, captions and final assembly. The system is intentionally designed so generation models and vendors can be changed independently of story, continuity, project data and UI.
-
 ## Roadmap
 
 1. Strengthen story diagnostics and genre-specific structures.
 2. Build character/world/style bible tooling.
 3. Add richer scene and shot generation with continuity-aware handoffs.
-4. Add secure optional provider adapters.
-5. Add resumable render queues and asset lineage.
-6. Add local/open model integrations where practical on $0 hardware.
+4. Add secure optional provider adapters. **Done: first local/open-source adapter layer.**
+5. Add resumable render queues and asset lineage. **In progress: persisted browser-side generation state.**
+6. Add local/open model integrations where practical on $0 hardware. **Bridge contract ready.**
 7. Add FFmpeg-based assembly, audio mix and captions.
 8. Add scene/act/movie quality gates and export profiles.
 9. Validate with real creator workflows and improve from measured failures.
 
 ## Run
 
-Open `index.html` in a modern browser or deploy the repository as a static site. No installation is required.
+Open `index.html` in a modern browser for planning and export. For local generation, start `local-bridge/server.mjs` first, then use the Local AI Generation panel after creating a blueprint.
