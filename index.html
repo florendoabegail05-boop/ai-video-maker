@@ -14,6 +14,11 @@
   <link rel="stylesheet" href="pipeline.css">
   <script src="app-config.js" defer></script>
   <script src="provider-registry.js" defer></script>
+  <script src="generation-contract.js" defer></script>
+  <script src="story-engine.js" defer></script>
+  <script src="media-assembly.js" defer></script>
+  <script src="generation-orchestrator.js" defer></script>
+  <script src="provider-adapters.js" defer></script>
   <script src="app.js" defer></script>
   <script src="quality-engine.js" defer></script>
   <script src="production-pipeline.js" defer></script>
@@ -22,7 +27,7 @@
 <body>
 <header class="topbar"><a class="brand" href="#top"><span class="brand-mark">✦</span>AI Video Maker</a><div class="top-actions"><span class="privacy-pill">🔒 LOCAL-FIRST</span><span class="free-pill">FREE</span></div></header>
 <main id="top" class="container">
-<section class="hero"><div class="eyebrow">FREE CREATOR STUDIO</div><h1>From one idea to a <span>repeatable video system.</span></h1><p>Create, save and refine video blueprints without an API key or paid backend.</p></section>
+<section class="hero"><div class="eyebrow">FREE CREATOR STUDIO</div><h1>From one idea to a <span>repeatable video system.</span></h1><p>Create, save and refine video blueprints without exposing API keys or depending on a paid backend.</p></section>
 <section class="studio-grid">
 <aside class="panel sidebar">
   <div class="side-title"><div><div class="eyebrow">WORKSPACE</div><h2>Projects</h2></div><button id="newProjectBtn" class="small-primary" type="button">＋ New</button></div>
@@ -54,6 +59,6 @@
   </section>
 </section>
 </section>
-<section class="trust panel"><div><span class="trust-icon">🔐</span><div><h3>Security-conscious by design</h3><p>No third-party scripts, no remote API calls and no secrets in frontend code. LocalStorage is used only for your saved projects and profiles.</p></div></div><span class="local-badge">LOCAL-FIRST</span></section>
+<section class="trust panel"><div><span class="trust-icon">🔐</span><div><h3>Security-conscious by design</h3><p>No third-party runtime scripts, no remote API calls and no secrets in frontend code. Provider credentials belong behind a future secure server boundary.</p></div></div><span class="local-badge">LOCAL-FIRST</span></section>
 </main><footer>AI Video Maker · Free MVP · Creator Studio · Privacy-first foundation</footer><div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body></html>
