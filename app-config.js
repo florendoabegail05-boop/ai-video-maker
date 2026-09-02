@@ -3,7 +3,7 @@
   const VERSION = 1;
   const config = {
     schemaVersion: VERSION,
-    appVersion: "0.6.0",
+    appVersion: "0.7.0",
     storage: {
       projectKey: "aivm.creatorStudio.v1",
       pipelineKey: "aivm.productionPipeline.v2"
@@ -19,11 +19,13 @@
       productionPipeline: true,
       providerRegistry: true,
       localExport: true,
+      localGenerationBridge: true,
       remoteGeneration: false
     },
     security: {
       localFirst: true,
       allowRuntimeNetwork: false,
+      allowLoopbackBridge: true,
       allowFrontendSecrets: false
     }
   };
