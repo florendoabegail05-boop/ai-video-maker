@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'feature/**', 'qa/**']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: JavaScript syntax check
+        run: |
+          node --check app.js
+          node --check quality-engine.js
+          node --check production-pipeline.js
+          node --check register-sw.js
+          node --check sw.js
+      - name: Verify required app files
+        run: |
+          test -f index.html
+          test -f style.css
+          test -f app.js
+          test -f quality-engine.js
+          test -f production-pipeline.js
+          test -f register-sw.js
+          test -f sw.js
+          test -f manifest.webmanifest
+          test -f SECURITY.md
+      - name: Verify local-first frontend
+        run: |
+          if grep -RniE 'api[_-]?key|client[_-]?secret|access[_-]?token' --exclude-dir=.git --exclude='*.md' .; then exit 1; fi
+          if grep -nE 'https?://' app.js quality-engine.js production-pipeline.js register-sw.js sw.js; then exit 1; fi
+      - name: Verify HTML security policy
+        run: |
+          grep -q "Content-Security-Policy" index.html
+          grep -q "connect-src 'none'" index.html
+          grep -q "frame-ancestors 'none'" index.html

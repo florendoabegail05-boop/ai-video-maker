@@ -2,106 +2,54 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Free, privacy-first AI video blueprint maker for Shorts, Reels, TikTok and educational videos.">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Free, private, local-first AI video creator studio.">
+  <meta name="theme-color" content="#1f2937">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
-  <meta name="referrer" content="no-referrer">
-  <title>AI Video Maker — Free Creator Studio</title>
+  <meta http-equiv="Referrer-Policy" content="no-referrer">
+  <link rel="manifest" href="manifest.webmanifest">
+  <title>AI Video Maker — Creator Studio</title>
   <link rel="stylesheet" href="style.css">
   <script src="app.js" defer></script>
+  <script src="quality-engine.js" defer></script>
+  <script src="production-pipeline.js" defer></script>
+  <script src="register-sw.js" defer></script>
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="#top" aria-label="AI Video Maker home"><span class="brand-mark">✦</span><span>AI Video Maker</span></a>
-    <div class="top-actions">
-      <span class="privacy-pill">🔒 Private by default</span>
-      <span class="free-pill">FREE</span>
-    </div>
-  </header>
-
-  <main id="top" class="container">
-    <section class="hero">
-      <div class="eyebrow">FREE CREATOR STUDIO</div>
-      <h1>Turn one idea into a <span>ready-to-make video.</span></h1>
-      <p>Get a hook, script, shot-by-shot scenes, image prompts, motion prompts and publishing copy in seconds.</p>
-    </section>
-
-    <section class="workspace" aria-label="Video creator">
-      <div class="creator-card panel">
-        <div class="panel-heading">
-          <div><span class="step">01</span><div><h2>Describe your video</h2><p>Start simple. The engine expands your idea into a production plan.</p></div></div>
-          <button id="exampleBtn" class="text-button" type="button">Use example</button>
-        </div>
-
-        <label for="idea">Your idea</label>
-        <textarea id="idea" maxlength="500" placeholder="Example: A baby bear discovers the colors of the rainbow and learns them one by one..."></textarea>
-        <div class="field-meta"><span id="charCount">0 / 500</span><span>Be specific about the subject, goal or story.</span></div>
-
-        <div class="settings">
-          <div class="field"><label for="type">Platform / format</label><select id="type">
-            <option>YouTube Short</option><option>TikTok</option><option>Instagram Reel</option><option>Educational Video</option><option>Story Video</option>
-          </select></div>
-          <div class="field"><label for="length">Length</label><select id="length"><option value="30">30 seconds</option><option value="45">45 seconds</option><option value="60">60 seconds</option></select></div>
-          <div class="field"><label for="style">Visual style</label><select id="style"><option>Kids 3D Animation</option><option>Cartoon</option><option>Storybook</option><option>Educational</option><option>Cinematic</option><option>Minimal / Modern</option></select></div>
-        </div>
-
-        <div class="advanced-row">
-          <label class="check"><input id="includeCta" type="checkbox" checked><span>Include a natural call-to-action</span></label>
-          <label class="check"><input id="includeVoice" type="checkbox" checked><span>Write voiceover</span></label>
-        </div>
-
-        <button id="createBtn" class="primary-button" type="button"><span>✦</span> Create video blueprint <kbd>Ctrl</kbd><kbd>Enter</kbd></button>
-        <p class="privacy-note">No API key. No server. Your idea stays in this browser.</p>
-      </div>
-
-      <aside class="quick-panel panel">
-        <div class="mini-icon">⚡</div><h3>Built for zero budget</h3>
-        <p>The core engine runs locally in your browser. Export the blueprint, then use the free tools you already have.</p>
-        <div class="feature-list">
-          <div><b>01</b><span>Hook engineered for attention</span></div>
-          <div><b>02</b><span>5-second production beats</span></div>
-          <div><b>03</b><span>Consistent image + video prompts</span></div>
-          <div><b>04</b><span>Ready-to-post title & hashtags</span></div>
-        </div>
-      </aside>
-    </section>
-
-    <section id="results" class="results panel hidden" aria-live="polite">
-      <div class="result-header">
-        <div><div class="eyebrow">YOUR BLUEPRINT</div><h2 id="resultTitle">Video blueprint</h2><p id="videoSummary"></p></div>
-        <div class="score-wrap"><div class="score"><span id="score">--</span><small>/100</small></div><span>Creator score</span></div>
-      </div>
-
-      <div class="action-bar">
-        <button id="copyAllBtn" class="secondary-button" type="button">📋 Copy all</button>
-        <button id="downloadTxtBtn" class="secondary-button" type="button">↓ TXT</button>
-        <button id="downloadJsonBtn" class="secondary-button" type="button">↓ JSON</button>
-        <button id="regenerateBtn" class="secondary-button" type="button">↻ Regenerate</button>
-      </div>
-
-      <div class="result-grid">
-        <article class="result-section highlight"><div class="section-label">HOOK</div><h3 id="hook"></h3></article>
-        <article class="result-section"><div class="section-label">SCRIPT</div><p id="script" class="long-text"></p></article>
-      </div>
-
-      <div class="result-section scenes-section">
-        <div class="section-top"><div><div class="section-label">SHOT LIST</div><h3>Scene-by-scene production plan</h3></div><span id="sceneCountBadge" class="badge"></span></div>
-        <div id="scenes"></div>
-      </div>
-
-      <div class="result-grid publishing-grid">
-        <article class="result-section"><div class="section-label">PUBLISHING</div><h3>Ready to post</h3><div class="copy-field"><b>Title</b><p id="title"></p><button class="tiny-copy" data-copy-target="title" type="button">Copy</button></div><div class="copy-field"><b>Description</b><p id="description"></p><button class="tiny-copy" data-copy-target="description" type="button">Copy</button></div><div class="copy-field"><b>Hashtags</b><p id="hashtags"></p><button class="tiny-copy" data-copy-target="hashtags" type="button">Copy</button></div></article>
-        <article class="result-section"><div class="section-label">NEXT IDEAS</div><h3>10 variations</h3><div id="ideaList" class="idea-list"></div></article>
-      </div>
-    </section>
-
-    <section class="trust panel">
-      <div><span class="trust-icon">🔐</span><div><h3>Security-conscious by design</h3><p>This version does not collect your idea, send it to an API, or require an API key. Secrets should never be placed in frontend code.</p></div></div>
-      <span class="local-badge">LOCAL-FIRST</span>
-    </section>
-  </main>
-
-  <footer>AI Video Maker · Free MVP · Privacy-first foundation</footer>
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-</body>
-</html>
+<header class="topbar"><a class="brand" href="#top"><span class="brand-mark">✦</span>AI Video Maker</a><div class="top-actions"><span class="privacy-pill">🔒 LOCAL-FIRST</span><span class="free-pill">FREE</span></div></header>
+<main id="top" class="container">
+<section class="hero"><div class="eyebrow">FREE CREATOR STUDIO</div><h1>From one idea to a <span>repeatable video system.</span></h1><p>Create, save and refine video blueprints without an API key or paid backend.</p></section>
+<section class="studio-grid">
+<aside class="panel sidebar">
+  <div class="side-title"><div><div class="eyebrow">WORKSPACE</div><h2>Projects</h2></div><button id="newProjectBtn" class="small-primary" type="button">＋ New</button></div>
+  <div id="projectList" class="project-list"></div>
+  <div class="side-divider"></div>
+  <div class="eyebrow">REUSABLE PROFILES</div>
+  <button class="profile-tab active" data-profile="character" type="button">👤 Character</button>
+  <button class="profile-tab" data-profile="environment" type="button">🌎 Environment</button>
+  <button class="profile-tab" data-profile="style" type="button">🎨 Visual style</button>
+  <div id="profileForm" class="profile-form"></div>
+</aside>
+<section class="main-workspace">
+  <div class="panel creator-card">
+    <div class="panel-heading"><div><span class="step">01</span><div><h2>Build your video</h2><p>Your saved profiles automatically strengthen every scene prompt.</p></div></div><button id="exampleBtn" class="text-button" type="button">Use example</button></div>
+    <label for="projectName">Project name</label><input id="projectName" maxlength="80" placeholder="e.g. Rainbow Adventure Episode 1">
+    <label for="idea">Your idea</label><textarea id="idea" maxlength="800" placeholder="Example: A baby bear discovers the colors of the rainbow and learns them one by one..."></textarea>
+    <div class="field-meta"><span id="charCount">0 / 800</span><span>Specific subjects, goals and story beats produce stronger plans.</span></div>
+    <div class="settings"><div class="field"><label for="type">Platform</label><select id="type"><option>YouTube Short</option><option>TikTok</option><option>Instagram Reel</option><option>Educational Video</option><option>Story Video</option></select></div><div class="field"><label for="length">Length</label><select id="length"><option value="30">30 seconds</option><option value="45">45 seconds</option><option value="60">60 seconds</option></select></div><div class="field"><label for="style">Base style</label><select id="style"><option>Kids 3D Animation</option><option>Cartoon</option><option>Storybook</option><option>Educational</option><option>Cinematic</option><option>Minimal / Modern</option></select></div></div>
+    <div class="advanced-row"><label class="check"><input id="includeCta" type="checkbox" checked><span>Natural CTA</span></label><label class="check"><input id="includeVoice" type="checkbox" checked><span>Voiceover</span></label><label class="check"><input id="saveProject" type="checkbox" checked><span>Save project locally</span></label></div>
+    <button id="createBtn" class="primary-button" type="button"><span>✦</span> Create / update blueprint <kbd>Ctrl</kbd><kbd>Enter</kbd></button>
+    <p class="privacy-note">No account, API key, server or analytics required. Saved projects stay in this browser.</p>
+  </div>
+  <section id="results" class="panel results hidden" aria-live="polite">
+    <div class="result-header"><div><div class="eyebrow">BLUEPRINT</div><h2 id="resultTitle">Video blueprint</h2><p id="videoSummary"></p></div><div class="score-wrap"><div class="score"><span id="score">--</span><small>/100</small></div><span>Creator score</span></div></div>
+    <div class="action-bar"><button id="copyAllBtn" class="secondary-button" type="button">📋 Copy all</button><button id="downloadTxtBtn" class="secondary-button" type="button">↓ TXT</button><button id="downloadJsonBtn" class="secondary-button" type="button">↓ JSON</button><button id="duplicateBtn" class="secondary-button" type="button">⧉ Duplicate</button><button id="regenerateBtn" class="secondary-button" type="button">↻ Regenerate</button></div>
+    <div class="result-grid"><article class="result-section highlight"><div class="section-label">HOOK</div><h3 id="hook"></h3></article><article class="result-section"><div class="section-label">SCRIPT</div><p id="script" class="long-text"></p></article></div>
+    <div class="result-section scenes-section"><div class="section-top"><div><div class="section-label">SHOT LIST</div><h3>Edit, reorder and refine scenes</h3></div><span id="sceneCountBadge" class="badge"></span></div><p class="helper">Each 5-second shot now has a clear story purpose, continuity lock, camera direction, motion direction, image prompt, video prompt and audio direction.</p><div id="scenes"></div></div>
+    <div class="result-grid publishing-grid"><article class="result-section"><div class="section-label">PUBLISHING</div><h3>Ready to post</h3><div class="copy-field"><b>Title</b><p id="title"></p><button class="tiny-copy" data-copy-target="title" type="button">Copy</button></div><div class="copy-field"><b>Description</b><p id="description"></p><button class="tiny-copy" data-copy-target="description" type="button">Copy</button></div><div class="copy-field"><b>Hashtags</b><p id="hashtags"></p><button class="tiny-copy" data-copy-target="hashtags" type="button">Copy</button></div></article><article class="result-section"><div class="section-label">NEXT IDEAS</div><h3>10 variations</h3><div id="ideaList" class="idea-list"></div></article></div>
+  </section>
+</section>
+</section>
+<section class="trust panel"><div><span class="trust-icon">🔐</span><div><h3>Security-conscious by design</h3><p>No third-party scripts, no remote API calls and no secrets in frontend code. LocalStorage is used only for your saved projects and profiles.</p></div></div><span class="local-badge">LOCAL-FIRST</span></section>
+</main><footer>AI Video Maker · Free MVP · Creator Studio · Privacy-first foundation</footer><div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body></html>
