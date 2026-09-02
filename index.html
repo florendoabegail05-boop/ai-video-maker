@@ -11,6 +11,7 @@
   <title>AI Video Maker — Creator Studio</title>
   <link rel="stylesheet" href="style.css">
   <script src="app.js" defer></script>
+  <script src="register-sw.js" defer></script>
 </head>
 <body>
 <header class="topbar"><a class="brand" href="#top"><span class="brand-mark">✦</span>AI Video Maker</a><div class="top-actions"><span class="privacy-pill">🔒 LOCAL-FIRST</span><span class="free-pill">FREE</span></div></header>
@@ -49,5 +50,4 @@
 </section>
 <section class="trust panel"><div><span class="trust-icon">🔐</span><div><h3>Security-conscious by design</h3><p>No third-party scripts, no remote API calls and no secrets in frontend code. LocalStorage is used only for your saved projects and profiles.</p></div></div><span class="local-badge">LOCAL-FIRST</span></section>
 </main><footer>AI Video Maker · Free MVP · Creator Studio · Privacy-first foundation</footer><div id="toast" class="toast" role="status" aria-live="polite"></div>
-<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));}</script>
 </body></html>
