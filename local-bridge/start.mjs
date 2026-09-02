@@ -27,6 +27,10 @@ function resolveFromRoot(value) { return path.isAbsolute(value) ? value : path.r
 process.env.AIVM_MEDIA_ROOT = resolveFromRoot(process.env.AIVM_MEDIA_ROOT || './media');
 process.env.AIVM_OUTPUT_ROOT = resolveFromRoot(process.env.AIVM_OUTPUT_ROOT || './exports');
 process.env.AIVM_COMFYUI_URL ||= 'http://127.0.0.1:8188';
+for (const kind of ['IMAGE', 'VIDEO', 'VOICE', 'AUDIO']) {
+  const key = `AIVM_COMFYUI_WORKFLOW_${kind}`;
+  if (process.env[key]) process.env[key] = resolveFromRoot(process.env[key]);
+}
 
 for (const dir of [process.env.AIVM_MEDIA_ROOT, process.env.AIVM_OUTPUT_ROOT]) fs.mkdirSync(dir, { recursive: true });
 
