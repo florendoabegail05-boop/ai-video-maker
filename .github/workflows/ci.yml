@@ -24,33 +24,40 @@ jobs:
           node --check app.js
           node --check quality-engine.js
           node --check production-pipeline.js
+          node --check director-v5.js
           node --check register-sw.js
           node --check sw.js
       - name: Quality Director smoke tests
         run: node tests/quality-engine.smoke.js
+      - name: Creator Director v5 smoke and security tests
+        run: node tests/director-v5.smoke.js
       - name: Verify required app files
         run: |
           test -f index.html
           test -f style.css
           test -f quality.css
           test -f pipeline.css
+          test -f director-v5.css
           test -f app.js
           test -f quality-engine.js
           test -f production-pipeline.js
+          test -f director-v5.js
           test -f register-sw.js
           test -f sw.js
           test -f manifest.webmanifest
           test -f SECURITY.md
           test -f tests/quality-engine.smoke.js
+          test -f tests/director-v5.smoke.js
       - name: Verify local-first frontend
         run: |
           if grep -RniE 'api[_-]?key|client[_-]?secret|access[_-]?token' --exclude-dir=.git --exclude='*.md' .; then exit 1; fi
-          if grep -nE 'https?://' app.js quality-engine.js production-pipeline.js register-sw.js sw.js; then exit 1; fi
+          if grep -nE 'https?://' app.js quality-engine.js production-pipeline.js director-v5.js register-sw.js sw.js; then exit 1; fi
       - name: Verify strict CSP and no inline styling hooks
         run: |
           grep -q "Content-Security-Policy" index.html
           grep -q "connect-src 'none'" index.html
           grep -q "frame-ancestors 'none'" index.html
-          ! grep -n "document.createElement(\"style\")" quality-engine.js production-pipeline.js
+          ! grep -n "document.createElement(\"style\")" quality-engine.js production-pipeline.js director-v5.js
           grep -q 'quality.css' index.html
           grep -q 'pipeline.css' index.html
+          grep -q 'director-v5.css' index.html
