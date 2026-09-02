@@ -82,8 +82,8 @@ jobs:
       - name: Verify local-first frontend
         run: |
           if grep -RniE 'api[_-]?key|client[_-]?secret|access[_-]?token' --exclude-dir=.git --exclude-dir=local-bridge --exclude='*.md' .; then exit 1; fi
-          if grep -nE 'https?://' app.js quality-engine.js production-pipeline.js register-sw.js sw.js provider-registry.js app-config.js media-engine/*.js hardware-diagnostics.js; then exit 1; fi
-          if grep -nE 'https?://' local-generation.js | grep -v 'http://127.0.0.1:8787'; then exit 1; fi
+          if grep -nE 'https?://' app.js quality-engine.js production-pipeline.js register-sw.js sw.js provider-registry.js app-config.js media-engine/*.js; then exit 1; fi
+          if grep -nE 'https?://' local-generation.js hardware-diagnostics.js | grep -v 'http://127.0.0.1:8787'; then exit 1; fi
       - name: Verify strict CSP and no inline styling hooks
         run: |
           grep -q "Content-Security-Policy" index.html
