@@ -1,7 +1,7 @@
 "use strict";
 
-const CACHE = "aivm-shell-v1";
-const ASSETS = ["./", "./index.html", "./style.css", "./app.js", "./manifest.webmanifest"];
+const CACHE = "aivm-shell-v5";
+const ASSETS = ["./", "./index.html", "./style.css", "./quality.css", "./pipeline.css", "./director-v5.css", "./app.js", "./quality-engine.js", "./production-pipeline.js", "./director-v5.js", "./register-sw.js", "./manifest.webmanifest"];
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
