@@ -9,36 +9,19 @@
   <meta http-equiv="Referrer-Policy" content="no-referrer">
   <link rel="manifest" href="manifest.webmanifest">
   <title>AI Video Maker — Creator Studio</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="quality.css">
-  <link rel="stylesheet" href="pipeline.css">
-  <link rel="stylesheet" href="local-generation.css">
-  <script src="app-config.js" defer></script>
-  <script src="provider-registry.js" defer></script>
-  <script src="media-engine/config.js" defer></script>
-  <script src="media-engine/contracts.js" defer></script>
-  <script src="media-engine/providers.js" defer></script>
-  <script src="media-engine/pipeline.js" defer></script>
-  <script src="app.js" defer></script>
-  <script src="quality-engine.js" defer></script>
-  <script src="production-pipeline.js" defer></script>
-  <script src="local-generation.js" defer></script>
-  <script src="register-sw.js" defer></script>
+  <link rel="stylesheet" href="style.css"><link rel="stylesheet" href="quality.css"><link rel="stylesheet" href="pipeline.css"><link rel="stylesheet" href="local-generation.css"><link rel="stylesheet" href="hardware-diagnostics.css">
+  <script src="app-config.js" defer></script><script src="provider-registry.js" defer></script><script src="media-engine/config.js" defer></script><script src="media-engine/contracts.js" defer></script><script src="media-engine/providers.js" defer></script><script src="media-engine/pipeline.js" defer></script><script src="app.js" defer></script><script src="quality-engine.js" defer></script><script src="production-pipeline.js" defer></script><script src="local-generation.js" defer></script><script src="hardware-diagnostics.js" defer></script><script src="register-sw.js" defer></script>
 </head>
 <body>
 <header class="topbar"><a class="brand" href="#top"><span class="brand-mark">✦</span>AI Video Maker</a><div class="top-actions"><span class="privacy-pill">🔒 LOCAL-FIRST</span><span class="free-pill">FREE</span></div></header>
 <main id="top" class="container">
 <section class="hero"><div class="eyebrow">FREE CREATOR STUDIO</div><h1>From one idea to a <span>repeatable video system.</span></h1><p>Create, save and refine video blueprints without an API key or paid backend.</p></section>
+<section id="generationHealth" class="panel health-panel"><div class="health-head"><div><div class="eyebrow">GENERATION HEALTH</div><h3>Your computer, checked automatically</h3><p id="generationHealthSummary" class="health-summary">Checking your computer…</p></div><button id="refreshHealthBtn" class="secondary-button health-refresh" type="button">↻ Refresh</button></div><div id="generationHealthDetails" class="health-items"></div></section>
 <section class="studio-grid">
 <aside class="panel sidebar">
   <div class="side-title"><div><div class="eyebrow">WORKSPACE</div><h2>Projects</h2></div><button id="newProjectBtn" class="small-primary" type="button">＋ New</button></div>
-  <div id="projectList" class="project-list"></div>
-  <div class="side-divider"></div>
-  <div class="eyebrow">REUSABLE PROFILES</div>
-  <button class="profile-tab active" data-profile="character" type="button">👤 Character</button>
-  <button class="profile-tab" data-profile="environment" type="button">🌎 Environment</button>
-  <button class="profile-tab" data-profile="style" type="button">🎨 Visual style</button>
-  <div id="profileForm" class="profile-form"></div>
+  <div id="projectList" class="project-list"></div><div class="side-divider"></div><div class="eyebrow">REUSABLE PROFILES</div>
+  <button class="profile-tab active" data-profile="character" type="button">👤 Character</button><button class="profile-tab" data-profile="environment" type="button">🌎 Environment</button><button class="profile-tab" data-profile="style" type="button">🎨 Visual style</button><div id="profileForm" class="profile-form"></div>
 </aside>
 <section class="main-workspace">
   <div class="panel creator-card">
@@ -48,8 +31,7 @@
     <div class="field-meta"><span id="charCount">0 / 800</span><span>Specific subjects, goals and story beats produce stronger plans.</span></div>
     <div class="settings"><div class="field"><label for="type">Platform</label><select id="type"><option>YouTube Short</option><option>TikTok</option><option>Instagram Reel</option><option>Educational Video</option><option>Story Video</option></select></div><div class="field"><label for="length">Length</label><select id="length"><option value="30">30 seconds</option><option value="45">45 seconds</option><option value="60">60 seconds</option></select></div><div class="field"><label for="style">Base style</label><select id="style"><option>Kids 3D Animation</option><option>Cartoon</option><option>Storybook</option><option>Educational</option><option>Cinematic</option><option>Minimal / Modern</option></select></div></div>
     <div class="advanced-row"><label class="check"><input id="includeCta" type="checkbox" checked><span>Natural CTA</span></label><label class="check"><input id="includeVoice" type="checkbox" checked><span>Voiceover</span></label><label class="check"><input id="saveProject" type="checkbox" checked><span>Save project locally</span></label></div>
-    <button id="createBtn" class="primary-button" type="button"><span>✦</span> Create / update blueprint <kbd>Ctrl</kbd><kbd>Enter</kbd></button>
-    <p class="privacy-note">No account, API key, server or analytics required. Saved projects stay in this browser.</p>
+    <button id="createBtn" class="primary-button" type="button"><span>✦</span> Create / update blueprint <kbd>Ctrl</kbd><kbd>Enter</kbd></button><p class="privacy-note">No account, API key, server or analytics required. Saved projects stay in this browser.</p>
   </div>
   <section id="results" class="panel results hidden" aria-live="polite">
     <div class="result-header"><div><div class="eyebrow">BLUEPRINT</div><h2 id="resultTitle">Video blueprint</h2><p id="videoSummary"></p></div><div class="score-wrap"><div class="score"><span id="score">--</span><small>/100</small></div><span>Creator score</span></div></div>
@@ -58,8 +40,7 @@
     <div class="result-section scenes-section"><div class="section-top"><div><div class="section-label">SHOT LIST</div><h3>Edit, reorder and refine scenes</h3></div><span id="sceneCountBadge" class="badge"></span></div><p class="helper">Each shot has a story purpose, continuity state, camera direction, motion direction, image prompt, video prompt and audio direction.</p><div id="scenes"></div></div>
     <div class="result-grid publishing-grid"><article class="result-section"><div class="section-label">PUBLISHING</div><h3>Ready to post</h3><div class="copy-field"><b>Title</b><p id="title"></p><button class="tiny-copy" data-copy-target="title" type="button">Copy</button></div><div class="copy-field"><b>Description</b><p id="description"></p><button class="tiny-copy" data-copy-target="description" type="button">Copy</button></div><div class="copy-field"><b>Hashtags</b><p id="hashtags"></p><button class="tiny-copy" data-copy-target="hashtags" type="button">Copy</button></div></article><article class="result-section"><div class="section-label">NEXT IDEAS</div><h3>Shot opportunities</h3><div id="ideaList" class="idea-list"></div></article></div>
   </section>
-</section>
-</section>
+</section></section>
 <section class="trust panel"><div><span class="trust-icon">🔐</span><div><h3>Security-conscious by design</h3><p>No third-party scripts, no remote API calls and no secrets in frontend code. LocalStorage is used only for your saved projects and profiles.</p></div></div><span class="local-badge">LOCAL-FIRST</span></section>
 </main><footer>AI Video Maker · Free MVP · Creator Studio · Privacy-first foundation</footer><div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body></html>
