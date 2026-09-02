@@ -11,14 +11,16 @@
   function pipelineState(p) { const x = load(PIPE_KEY); if (x.projectId !== p.id || !Array.isArray(x.shots)) return { projectId: p.id, shots: (p.blueprint?.scenes || []).map((_, i) => ({ index: i, status: "planned", approved: false, generation: null })) }; x.shots.forEach((s, i) => { s.index = i; }); return x; }
   function savePipeline(x) { x.updatedAt = Date.now(); save(PIPE_KEY, x); }
   function promptFor(scene, p, kind, previous) {
-    if (kind === "image") return { prompt: scene.imagePrompt, project: p.name, shot: scene.number, duration: 5, aspectRatio: "9:16", continuityHandoff: previous || "MASTER START: use the approved character, world and style references." };
-    return { prompt: scene.videoPrompt, project: p.name, shot: scene.number, duration: 5, aspectRatio: "9:16", mode: "image-to-video", imageInput: previous?.asset || previous?.url || previous?.path || null, continuityHandoff: `Preserve the exact visual state from the source image. ${scene.videoPrompt}` };
+    const duration = Math.max(1, Number(scene?.end || 0) - Number(scene?.start || 0) || 5);
+    if (kind === "image") return { prompt: scene.imagePrompt, project: p.name, shot: scene.number, duration, aspectRatio: "9:16", continuityHandoff: previous || "MASTER START: use the approved character, world and style references." };
+    return { prompt: scene.videoPrompt, project: p.name, shot: scene.number, duration, aspectRatio: "9:16", mode: "image-to-video", imageInput: previous?.asset || previous?.url || previous?.path || null, continuityHandoff: `Preserve the exact visual state from the source image. ${scene.videoPrompt}` };
   }
   async function generateShot(index, button) {
     const p = activeProject(), scene = p?.blueprint?.scenes?.[index]; if (!p || !scene) throw new Error("Create a blueprint first.");
     const x = pipelineState(p), shot = x.shots[index] || (x.shots[index] = { index, status: "planned", approved: false });
     button.disabled = true; button.textContent = "Generating…";
     try { shot.status = "generating-image"; savePipeline(x); render(); const image = await request("/v1/generate/image", promptFor(scene, p, "image")); shot.generation = { image, startedAt: Date.now() }; shot.status = "image-complete"; savePipeline(x); render(); const video = await request("/v1/generate/video", promptFor(scene, p, "video", image)); shot.generation.video = video; shot.status = "video-complete"; savePipeline(x); render(); return { image, video }; }
+    catch (error) { shot.status = "failed"; shot.error = error.message; savePipeline(x); render(); throw error; }
     finally { button.disabled = false; button.textContent = "Generate shot"; }
   }
   function assetPath(video) { const a = video?.asset; return a?.path || a?.file || video?.path || video?.outputPath || video?.file || null; }
@@ -26,7 +28,7 @@
     const p = activeProject(), x = pipelineState(p), clips = x.shots.map(s => assetPath(s.generation?.video)).filter(Boolean);
     if (!p?.blueprint) throw new Error("Create a blueprint first.");
     if (clips.length !== (p.blueprint.scenes || []).length) throw new Error("Every shot needs a local video file path from the runner before assembly.");
-    return request("/v1/assemble", { clips, outputName: `${(p.name || "ai-video").replace(/[^a-z0-9_-]+/gi, "-").toLowerCase()}.mp4`, width: 1080, height: 1920, fps: 30 });
+    return request("/v1/assemble", { clips, outputName: `${(p.name || "ai-video").replace(/[^a-z0-9_-]+/gi, "-").toLowerCase()}.mp4`, preset: "9:16", width: 1080, height: 1920, fps: 30, expectedDuration: Number(p.blueprint.length || 0), captions: p.blueprint.scenes.map(s => ({ start: s.start, end: s.end, text: s.voiceover })).filter(c => c.text) });
   }
   function render() {
     const results = $("results"); if (!results || results.classList.contains("hidden")) return;
