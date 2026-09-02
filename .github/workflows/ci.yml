@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, 'feature/**']
+    branches: [main, 'feature/**', 'qa/**']
   pull_request:
     branches: [main]
 
@@ -39,8 +39,8 @@ jobs:
           test -f SECURITY.md
       - name: Verify local-first frontend
         run: |
-          ! grep -RniE '(^|[^A-Za-z])(api[_-]?key|client[_-]?secret|access[_-]?token|password)\\s*[:=]\\s*["'"'][^"'"']+["'"']' --exclude-dir=.git --exclude='*.md' .
-          ! grep -nE '(^|["'"'[:space:]])https?://' app.js quality-engine.js production-pipeline.js register-sw.js sw.js
+          if grep -RniE 'api[_-]?key|client[_-]?secret|access[_-]?token' --exclude-dir=.git --exclude='*.md' .; then exit 1; fi
+          if grep -nE 'https?://' app.js quality-engine.js production-pipeline.js register-sw.js sw.js; then exit 1; fi
       - name: Verify HTML security policy
         run: |
           grep -q "Content-Security-Policy" index.html
