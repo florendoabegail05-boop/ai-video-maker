@@ -28,18 +28,22 @@ jobs:
           find . -name '*.js' -not -path './.git/*' -print0 | xargs -0 -n1 node --check
           node --check local-bridge/server.mjs
           node --check local-bridge/assembler.mjs
+          node --check local-bridge/hardware-diagnostics.mjs
       - name: Quality Director smoke tests
         run: node tests/quality-engine.smoke.js
       - name: Future-proof foundation smoke tests
         run: node tests/future-proof.smoke.js
       - name: Media engine smoke tests
         run: node tests/media-engine.smoke.js
+      - name: Hardware routing smoke tests
+        run: node tests/hardware-routing.smoke.js
       - name: Local bridge contract smoke test
         run: |
           AIVM_MOCK=1 node local-bridge/server.mjs > /tmp/aivm-bridge.log 2>&1 &
           PID=$!
           trap 'kill $PID 2>/dev/null || true' EXIT
           for i in {1..20}; do curl -fsS http://127.0.0.1:8787/health && break || sleep 0.2; done
+          curl -fsS http://127.0.0.1:8787/v1/capabilities | grep -q '"capabilities"'
           curl -fsS -X POST http://127.0.0.1:8787/v1/generate/image -H 'content-type: application/json' -d '{"prompt":"contract test"}' | grep -q '"mock":true'
           ! curl -s -o /tmp/aivm-assemble.json -w '%{http_code}' -X POST http://127.0.0.1:8787/v1/assemble -H 'content-type: application/json' -d '{"clips":["/tmp/not-allowed.mp4"]}' | grep -q '^200$'
       - name: Verify required app files
@@ -49,12 +53,14 @@ jobs:
           test -f quality.css
           test -f pipeline.css
           test -f local-generation.css
+          test -f hardware-diagnostics.css
           test -f app-config.js
           test -f provider-registry.js
           test -f app.js
           test -f quality-engine.js
           test -f production-pipeline.js
           test -f local-generation.js
+          test -f hardware-diagnostics.js
           test -f register-sw.js
           test -f sw.js
           test -f manifest.webmanifest
@@ -68,13 +74,15 @@ jobs:
           test -f tests/quality-engine.smoke.js
           test -f tests/future-proof.smoke.js
           test -f tests/media-engine.smoke.js
+          test -f tests/hardware-routing.smoke.js
           test -f local-bridge/server.mjs
           test -f local-bridge/assembler.mjs
+          test -f local-bridge/hardware-diagnostics.mjs
           test -f local-bridge/README.md
       - name: Verify local-first frontend
         run: |
           if grep -RniE 'api[_-]?key|client[_-]?secret|access[_-]?token' --exclude-dir=.git --exclude-dir=local-bridge --exclude='*.md' .; then exit 1; fi
-          if grep -nE 'https?://' app.js quality-engine.js production-pipeline.js register-sw.js sw.js provider-registry.js app-config.js media-engine/*.js; then exit 1; fi
+          if grep -nE 'https?://' app.js quality-engine.js production-pipeline.js register-sw.js sw.js provider-registry.js app-config.js media-engine/*.js hardware-diagnostics.js; then exit 1; fi
           if grep -nE 'https?://' local-generation.js | grep -v 'http://127.0.0.1:8787'; then exit 1; fi
       - name: Verify strict CSP and no inline styling hooks
         run: |
@@ -87,3 +95,4 @@ jobs:
           grep -q 'quality.css' index.html
           grep -q 'pipeline.css' index.html
           grep -q 'local-generation.css' index.html
+          grep -q 'hardware-diagnostics.css' index.html
