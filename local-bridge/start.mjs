@@ -2,9 +2,10 @@
 /** AI Video Maker — safe local launcher. Loads local .env values, then starts server.mjs. */
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 
-const root = path.resolve(import.meta.dirname);
+const root = path.dirname(fileURLToPath(import.meta.url));
 const envFile = path.join(root, '.env');
 
 function parseEnv(text) {
@@ -22,11 +23,12 @@ function parseEnv(text) {
 }
 
 if (fs.existsSync(envFile)) Object.assign(process.env, parseEnv(fs.readFileSync(envFile, 'utf8')));
-process.env.AIVM_MEDIA_ROOT ||= path.join(root, 'media');
-process.env.AIVM_OUTPUT_ROOT ||= path.join(root, 'exports');
+function resolveFromRoot(value) { return path.isAbsolute(value) ? value : path.resolve(root, value); }
+process.env.AIVM_MEDIA_ROOT = resolveFromRoot(process.env.AIVM_MEDIA_ROOT || './media');
+process.env.AIVM_OUTPUT_ROOT = resolveFromRoot(process.env.AIVM_OUTPUT_ROOT || './exports');
 process.env.AIVM_COMFYUI_URL ||= 'http://127.0.0.1:8188';
 
-for (const dir of [process.env.AIVM_MEDIA_ROOT, process.env.AIVM_OUTPUT_ROOT]) fs.mkdirSync(path.resolve(dir), { recursive: true });
+for (const dir of [process.env.AIVM_MEDIA_ROOT, process.env.AIVM_OUTPUT_ROOT]) fs.mkdirSync(dir, { recursive: true });
 
 console.log('AI Video Maker local bridge');
 console.log(`Media: ${process.env.AIVM_MEDIA_ROOT}`);
