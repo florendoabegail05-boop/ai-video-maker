@@ -6,6 +6,7 @@ const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
 const POLL_MS = 1200;
 
 function clean(value) { return String(value ?? '').trim(); }
+function assetPath(value) { if (typeof value === 'string') return value; if (value && typeof value === 'object') return value.path || value.file || value.url || ''; return ''; }
 function baseUrl(value) { return clean(value).replace(/\/$/, ''); }
 function assertLocalUrl(value) {
   const parsed = new URL(value);
@@ -78,7 +79,7 @@ async function downloadOutput(base, item, mediaRoot, jobId) {
 export async function runComfyWorkflow({ base, workflowFile, request, kind, mediaRoot, timeoutMs = DEFAULT_TIMEOUT_MS }) {
   const comfy = assertLocalUrl(baseUrl(base));
   const workflow = await readWorkflow(workflowFile);
-  const source = clean(request.imageInput || request.sourceAsset || request.input);
+  const source = assetPath(request.imageInput || request.sourceAsset || request.input);
   let inputImage = '';
   if (source) inputImage = await uploadImage(baseUrl(comfy), safeMediaInput(source, mediaRoot));
   const vars = {
