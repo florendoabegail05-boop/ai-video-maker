@@ -8,12 +8,13 @@ import { randomUUID } from 'node:crypto';
 import { assemble, inspectMedia } from './assembler.mjs';
 import { comfyConfigured, runComfyWorkflow } from './comfyui-runner.mjs';
 import { createMotionFallback } from './motion-fallback.mjs';
+import { createImageFallback } from './image-fallback.mjs';
 import { diagnostics, routeKind } from './hardware-diagnostics.mjs';
 
 const HOST = '127.0.0.1';
 const PORT = Number(process.env.AIVM_PORT || 8787);
 const MAX_BODY = 2 * 1024 * 1024;
-const MEDIA_ROOT = process.env.AIVM_MEDIA_ROOT || process.cwd();
+const MEDIA_ROOT = process.env.AIVM_MEDIA_ROOT || path.join(process.cwd(), 'media');
 const RUNNERS = Object.freeze({ image: process.env.AIVM_IMAGE_RUNNER || '', video: process.env.AIVM_VIDEO_RUNNER || '', voice: process.env.AIVM_VOICE_RUNNER || '', audio: process.env.AIVM_AUDIO_RUNNER || '' });
 const exportsByJob = new Map();
 const diagnosticsCache = { value: null, expires: 0 };
@@ -22,52 +23,37 @@ function readJson(req) { return new Promise((resolve, reject) => { let size = 0;
 function runnerFor(kind) { const url = RUNNERS[kind]; if (!url) return null; try { const parsed = new URL(url); if (parsed.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(parsed.hostname)) return null; return parsed; } catch { return null; } }
 function comfyFor(kind) { return process.env.AIVM_COMFYUI_URL && comfyConfigured(kind) ? new URL(process.env.AIVM_COMFYUI_URL) : null; }
 function workflowFor(kind) { return process.env[`AIVM_COMFYUI_WORKFLOW_${kind.toUpperCase()}`] || ''; }
-async function workflowStatus(kind) {
-  const configured = !!workflowFor(kind);
-  if (!configured) return { configured: false, exists: false, path: null };
-  const file = path.resolve(workflowFor(kind));
-  try { await fsp.access(file, fs.constants.R_OK); return { configured: true, exists: true, path: file }; }
-  catch { return { configured: true, exists: false, path: file }; }
-}
+async function workflowStatus(kind) { const configured = !!workflowFor(kind); if (!configured) return { configured: false, exists: false, path: null }; const file = path.resolve(workflowFor(kind)); try { await fsp.access(file, fs.constants.R_OK); return { configured: true, exists: true, path: file }; } catch { return { configured: true, exists: false, path: file }; } }
 async function getWorkflowStatuses() { return Object.fromEntries(await Promise.all(['image', 'video', 'voice', 'audio'].map(async kind => [kind, await workflowStatus(kind)]))); }
 async function getDiagnostics(force = false) { if (!force && diagnosticsCache.value && diagnosticsCache.expires > Date.now()) return diagnosticsCache.value; const value = await diagnostics(); diagnosticsCache.value = value; diagnosticsCache.expires = Date.now() + 15000; return value; }
 async function forward(kind, request) {
   const report = await getDiagnostics();
   const route = routeKind(kind, report);
-
-  // Prefer a real configured ComfyUI workflow even when hardware diagnostics are
-  // conservative. The workflow itself is the source of truth for whether it can run.
   const comfy = comfyFor(kind);
   if (comfy) return { status: 200, body: await runComfyWorkflow({ base: comfy.toString(), workflowFile: workflowFor(kind), request, kind, mediaRoot: MEDIA_ROOT }) };
-
   const runner = runnerFor(kind);
-  if (runner) {
-    const response = await fetch(runner, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...request, requestId: request.requestId || randomUUID(), kind }) });
-    const text = await response.text(); let body; try { body = JSON.parse(text); } catch { body = { status: response.ok ? 'completed' : 'failed', raw: text.slice(0, 10000) }; }
-    return { status: response.status, body: { ...body, route } };
+  if (runner) { const response = await fetch(runner, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...request, requestId: request.requestId || randomUUID(), kind }) }); const text = await response.text(); let body; try { body = JSON.parse(text); } catch { body = { status: response.ok ? 'completed' : 'failed', raw: text.slice(0, 10000) }; } return { status: response.status, body: { ...body, route } }; }
+
+  // Zero-cost image fallback: this is a deterministic preview still, not an AI image.
+  // It exists so the complete production/export contract can be tested on low-end hardware.
+  if (kind === 'image' && process.env.AIVM_ENABLE_IMAGE_FALLBACK !== '0') {
+    return { status: 200, body: await createImageFallback({ prompt: request.prompt || request.text || 'AI Video Maker preview', mediaRoot: MEDIA_ROOT, width: request.width || (request.aspectRatio === '9:16' ? 576 : 1024), height: request.height || (request.aspectRatio === '9:16' ? 1024 : 576) }) };
   }
 
-  // Critical zero-cost path: a still image can always become an uploadable MP4
-  // through FFmpeg. This keeps the production pipeline usable on machines that
-  // cannot run modern I2V models, while clearly identifying the result as a fallback.
   const inputImage = request.imageInput || request.sourceAsset || request.input;
   const fallbackEnabled = process.env.AIVM_ENABLE_MOTION_FALLBACK !== '0';
   if (kind === 'video' && fallbackEnabled && inputImage) {
-    try {
-      return { status: 200, body: await createMotionFallback({ inputImage, mediaRoot: MEDIA_ROOT, duration: request.duration, fps: request.fps || 24, width: request.width, height: request.height, motion: request.motion || 'push-in' }) };
-    } catch (error) {
-      return { status: 422, body: { status: 'failed', kind, route, error: error.message, fallback: true } };
-    }
+    try { return { status: 200, body: await createMotionFallback({ inputImage, mediaRoot: MEDIA_ROOT, duration: request.duration, fps: request.fps || 24, width: request.width, height: request.height, motion: request.motion || 'push-in' }) }; }
+    catch (error) { return { status: 422, body: { status: 'failed', kind, route, error: error.message, fallback: true } }; }
   }
-
   if (route.provider === 'unavailable') return { status: 503, body: { status: 'unavailable', kind, route, diagnostics: report } };
   return { status: 503, body: { status: 'unavailable', kind, route, error: `No safe local ${kind} runner configured.` } };
 }
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') return json(res, 204, {});
-  if (req.method === 'GET' && req.url === '/health') return json(res, 200, { ok: true, service: 'aivm-local-bridge', version: 6, loopbackOnly: true, mock: process.env.AIVM_MOCK === '1', ffmpeg: process.env.AIVM_FFMPEG || 'ffmpeg', mediaRoot: MEDIA_ROOT, runners: Object.fromEntries(Object.entries(RUNNERS).map(([k]) => [k, !!runnerFor(k) || !!comfyFor(k)])), comfyui: { enabled: !!process.env.AIVM_COMFYUI_URL, image: comfyConfigured('image'), video: comfyConfigured('video'), voice: comfyConfigured('voice'), audio: comfyConfigured('audio') }, workflows: await getWorkflowStatuses(), motionFallback: { enabled: process.env.AIVM_ENABLE_MOTION_FALLBACK !== '0', video: true } });
+  if (req.method === 'GET' && req.url === '/health') return json(res, 200, { ok: true, service: 'aivm-local-bridge', version: 7, loopbackOnly: true, mock: process.env.AIVM_MOCK === '1', ffmpeg: process.env.AIVM_FFMPEG || 'ffmpeg', mediaRoot: MEDIA_ROOT, runners: Object.fromEntries(Object.entries(RUNNERS).map(([k]) => [k, !!runnerFor(k) || !!comfyFor(k)])), comfyui: { enabled: !!process.env.AIVM_COMFYUI_URL, image: comfyConfigured('image'), video: comfyConfigured('video'), voice: comfyConfigured('voice'), audio: comfyConfigured('audio') }, workflows: await getWorkflowStatuses(), imageFallback: { enabled: process.env.AIVM_ENABLE_IMAGE_FALLBACK !== '0', productionQuality: false }, motionFallback: { enabled: process.env.AIVM_ENABLE_MOTION_FALLBACK !== '0', video: true } });
   if (req.method === 'GET' && req.url === '/v1/diagnostics') { try { return json(res, 200, await getDiagnostics(true)); } catch (error) { return json(res, 502, { status: 'failed', error: error.message }); } }
-  if (req.method === 'GET' && req.url === '/v1/capabilities') { try { const report = await getDiagnostics(); return json(res, 200, { ...report, routes: Object.fromEntries(['image', 'video', 'voice', 'audio'].map(kind => [kind, routeKind(kind, report)])), workflows: await getWorkflowStatuses(), motionFallback: { enabled: process.env.AIVM_ENABLE_MOTION_FALLBACK !== '0', video: true } }); } catch (error) { return json(res, 502, { status: 'failed', error: error.message }); } }
+  if (req.method === 'GET' && req.url === '/v1/capabilities') { try { const report = await getDiagnostics(); return json(res, 200, { ...report, routes: Object.fromEntries(['image', 'video', 'voice', 'audio'].map(kind => [kind, routeKind(kind, report)])), workflows: await getWorkflowStatuses(), imageFallback: { enabled: process.env.AIVM_ENABLE_IMAGE_FALLBACK !== '0', productionQuality: false }, motionFallback: { enabled: process.env.AIVM_ENABLE_MOTION_FALLBACK !== '0', video: true } }); } catch (error) { return json(res, 502, { status: 'failed', error: error.message }); } }
   const exportMatch = req.method === 'GET' && /^\/v1\/exports\/([a-f0-9-]+)$/.exec(req.url || '');
   if (exportMatch) { const file = exportsByJob.get(exportMatch[1]); if (!file) return json(res, 404, { status: 'not_found', error: 'Export job not found or bridge was restarted.' }); return fs.stat(file, (error, stat) => { if (error) return json(res, 404, { status: 'not_found', error: 'Export file is no longer available.' }); res.writeHead(200, { 'content-type': 'video/mp4', 'content-length': stat.size, 'cache-control': 'no-store', 'access-control-allow-origin': '*', 'content-disposition': 'attachment; filename="ai-video-maker.mp4"' }); fs.createReadStream(file).pipe(res); }); }
   if (req.method === 'POST' && req.url === '/v1/inspect') { try { const request = await readJson(req); return json(res, 200, await inspectMedia(request.path)); } catch (error) { return json(res, error.status || 422, { status: 'failed', error: error.message || 'Inspection failed.' }); } }
