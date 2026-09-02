@@ -1,0 +1,11 @@
+{
+  "name": "AI Video Maker — Creator Studio",
+  "short_name": "AI Video Maker",
+  "description": "Free, local-first video planning and prompt studio.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f4ef",
+  "theme_color": "#1f2937",
+  "icons": []
+}
