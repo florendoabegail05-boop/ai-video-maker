@@ -27,6 +27,7 @@ jobs:
         run: |
           find . -name '*.js' -not -path './.git/*' -print0 | xargs -0 -n1 node --check
           node --check local-bridge/server.mjs
+          node --check local-bridge/assembler.mjs
       - name: Quality Director smoke tests
         run: node tests/quality-engine.smoke.js
       - name: Future-proof foundation smoke tests
@@ -40,6 +41,7 @@ jobs:
           trap 'kill $PID 2>/dev/null || true' EXIT
           for i in {1..20}; do curl -fsS http://127.0.0.1:8787/health && break || sleep 0.2; done
           curl -fsS -X POST http://127.0.0.1:8787/v1/generate/image -H 'content-type: application/json' -d '{"prompt":"contract test"}' | grep -q '"mock":true'
+          ! curl -s -o /tmp/aivm-assemble.json -w '%{http_code}' -X POST http://127.0.0.1:8787/v1/assemble -H 'content-type: application/json' -d '{"clips":["/tmp/not-allowed.mp4"]}' | grep -q '^200$'
       - name: Verify required app files
         run: |
           test -f index.html
@@ -67,6 +69,7 @@ jobs:
           test -f tests/future-proof.smoke.js
           test -f tests/media-engine.smoke.js
           test -f local-bridge/server.mjs
+          test -f local-bridge/assembler.mjs
           test -f local-bridge/README.md
       - name: Verify local-first frontend
         run: |
