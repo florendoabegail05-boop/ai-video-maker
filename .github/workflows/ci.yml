@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -19,8 +23,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - name: JavaScript syntax check
         run: |
+          node --check app-config.js
+          node --check provider-registry.js
           node --check app.js
           node --check quality-engine.js
           node --check production-pipeline.js
@@ -28,12 +35,16 @@ jobs:
           node --check sw.js
       - name: Quality Director smoke tests
         run: node tests/quality-engine.smoke.js
+      - name: Future-proof foundation smoke tests
+        run: node tests/future-proof.smoke.js
       - name: Verify required app files
         run: |
           test -f index.html
           test -f style.css
           test -f quality.css
           test -f pipeline.css
+          test -f app-config.js
+          test -f provider-registry.js
           test -f app.js
           test -f quality-engine.js
           test -f production-pipeline.js
@@ -41,16 +52,20 @@ jobs:
           test -f sw.js
           test -f manifest.webmanifest
           test -f SECURITY.md
+          test -f ARCHITECTURE.md
           test -f tests/quality-engine.smoke.js
+          test -f tests/future-proof.smoke.js
       - name: Verify local-first frontend
         run: |
           if grep -RniE 'api[_-]?key|client[_-]?secret|access[_-]?token' --exclude-dir=.git --exclude='*.md' .; then exit 1; fi
-          if grep -nE 'https?://' app.js quality-engine.js production-pipeline.js register-sw.js sw.js; then exit 1; fi
+          if grep -nE 'https?://' app.js quality-engine.js production-pipeline.js register-sw.js sw.js provider-registry.js app-config.js; then exit 1; fi
       - name: Verify strict CSP and no inline styling hooks
         run: |
           grep -q "Content-Security-Policy" index.html
           grep -q "connect-src 'none'" index.html
           grep -q "frame-ancestors 'none'" index.html
           ! grep -n "document.createElement(\"style\")" quality-engine.js production-pipeline.js
+          grep -q 'app-config.js' index.html
+          grep -q 'provider-registry.js' index.html
           grep -q 'quality.css' index.html
           grep -q 'pipeline.css' index.html
