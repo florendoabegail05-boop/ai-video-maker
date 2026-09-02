@@ -25,17 +25,13 @@ jobs:
           node-version: 22
       - name: JavaScript syntax check
         run: |
-          node --check app-config.js
-          node --check provider-registry.js
-          node --check app.js
-          node --check quality-engine.js
-          node --check production-pipeline.js
-          node --check register-sw.js
-          node --check sw.js
+          find . -name '*.js' -not -path './.git/*' -print0 | xargs -0 -n1 node --check
       - name: Quality Director smoke tests
         run: node tests/quality-engine.smoke.js
       - name: Future-proof foundation smoke tests
         run: node tests/future-proof.smoke.js
+      - name: Media engine smoke tests
+        run: node tests/media-engine.smoke.js
       - name: Verify required app files
         run: |
           test -f index.html
@@ -52,12 +48,18 @@ jobs:
           test -f manifest.webmanifest
           test -f SECURITY.md
           test -f ARCHITECTURE.md
+          test -f MEDIA_ENGINE.md
+          test -f media-engine/config.js
+          test -f media-engine/contracts.js
+          test -f media-engine/pipeline.js
+          test -f media-engine/providers.js
           test -f tests/quality-engine.smoke.js
           test -f tests/future-proof.smoke.js
+          test -f tests/media-engine.smoke.js
       - name: Verify local-first frontend
         run: |
           if grep -RniE 'api[_-]?key|client[_-]?secret|access[_-]?token' --exclude-dir=.git --exclude='*.md' .; then exit 1; fi
-          if grep -nE 'https?://' app.js quality-engine.js production-pipeline.js register-sw.js sw.js provider-registry.js app-config.js; then exit 1; fi
+          if grep -nE 'https?://' app.js quality-engine.js production-pipeline.js register-sw.js sw.js provider-registry.js app-config.js media-engine/*.js; then exit 1; fi
       - name: Verify strict CSP and no inline styling hooks
         run: |
           grep -q "Content-Security-Policy" index.html
