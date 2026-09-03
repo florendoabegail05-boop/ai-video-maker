@@ -11,6 +11,7 @@ import { createMotionFallback } from './motion-fallback.mjs';
 import { createImageFallback } from './image-fallback.mjs';
 import { diagnostics, routeKind } from './hardware-diagnostics.mjs';
 import { LocalJobQueue } from './job-queue.mjs';
+import { preflightHeavyGeneration } from './generation-preflight.mjs';
 
 const HOST = '127.0.0.1';
 const PORT = Number(process.env.AIVM_PORT || 8787);
@@ -31,51 +32,36 @@ async function getWorkflowStatuses() { return Object.fromEntries(await Promise.a
 async function getDiagnostics(force = false) { if (!force && diagnosticsCache.value && diagnosticsCache.expires > Date.now()) return diagnosticsCache.value; const value = await diagnostics(); diagnosticsCache.value = value; diagnosticsCache.expires = Date.now() + 15000; return value; }
 
 async function forward(kind, request) {
+  const preflight = preflightHeavyGeneration({ mediaRoot: MEDIA_ROOT, estimatedBytes: Number(request.estimatedBytes || 0), minFreeMemoryBytes: Number(request.minFreeMemoryBytes || 2 * 1024 ** 3) });
+  if (!preflight.ok) return { status: 507, body: { status: 'blocked', kind, safety: preflight.code, error: preflight.message, resources: preflight.resources } };
   const report = await getDiagnostics();
   const route = routeKind(kind, report);
   const comfy = comfyFor(kind);
   const runner = runnerFor(kind);
-
   if (comfy && route.provider === 'local' && report.capabilities?.[`local_${kind === 'voice' || kind === 'audio' ? 'tts' : kind}`] !== 'unavailable') {
-    try {
-      return { status: 200, body: await runComfyWorkflow({ base: comfy.toString(), workflowFile: workflowFor(kind), request, kind, mediaRoot: MEDIA_ROOT }) };
-    } catch (error) {
-      return { status: 502, body: { status: 'failed', kind, route, provider: 'comfyui', error: error.message || 'ComfyUI generation failed.', safeFallbackAvailable: kind === 'video' ? !!(request.imageInput || request.sourceAsset || request.input) : kind === 'image' } };
-    }
+    try { return { status: 200, body: await runComfyWorkflow({ base: comfy.toString(), workflowFile: workflowFor(kind), request, kind, mediaRoot: MEDIA_ROOT }) }; }
+    catch (error) { return { status: 502, body: { status: 'failed', kind, route, provider: 'comfyui', error: error.message || 'ComfyUI generation failed.', safeFallbackAvailable: kind === 'video' ? !!(request.imageInput || request.sourceAsset || request.input) : kind === 'image' } }; }
   }
-
   if (runner) {
     try {
       const response = await fetch(runner, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...request, requestId: request.requestId || randomUUID(), kind }) });
-      const text = await response.text(); let body;
-      try { body = JSON.parse(text); } catch { body = { status: response.ok ? 'completed' : 'failed', raw: text.slice(0, 10000) }; }
+      const text = await response.text(); let body; try { body = JSON.parse(text); } catch { body = { status: response.ok ? 'completed' : 'failed', raw: text.slice(0, 10000) }; }
       return { status: response.status, body: { ...body, route, provider: 'runner' } };
-    } catch (error) {
-      return { status: 502, body: { status: 'failed', kind, route, provider: 'runner', error: error.message || 'Runner request failed.' } };
-    }
+    } catch (error) { return { status: 502, body: { status: 'failed', kind, route, provider: 'runner', error: error.message || 'Runner request failed.' } }; }
   }
-
-  if (kind === 'image' && process.env.AIVM_ENABLE_IMAGE_FALLBACK !== '0') {
-    return { status: 200, body: { ...(await createImageFallback({ prompt: request.prompt || request.text || 'AI Video Maker preview', mediaRoot: MEDIA_ROOT, width: request.width || (request.aspectRatio === '9:16' ? 576 : 1024), height: request.height || (request.aspectRatio === '9:16' ? 1024 : 576) })), route, provider: 'fallback' } };
-  }
-
+  if (kind === 'image' && process.env.AIVM_ENABLE_IMAGE_FALLBACK !== '0') return { status: 200, body: { ...(await createImageFallback({ prompt: request.prompt || request.text || 'AI Video Maker preview', mediaRoot: MEDIA_ROOT, width: request.width || (request.aspectRatio === '9:16' ? 576 : 1024), height: request.height || (request.aspectRatio === '9:16' ? 1024 : 576) })), route, provider: 'fallback' } };
   const inputImage = request.imageInput || request.sourceAsset || request.input;
-  const fallbackEnabled = process.env.AIVM_ENABLE_MOTION_FALLBACK !== '0';
-  if (kind === 'video' && fallbackEnabled && inputImage) {
-    try {
-      return { status: 200, body: { ...(await createMotionFallback({ inputImage, mediaRoot: MEDIA_ROOT, duration: request.duration, fps: request.fps || 24, width: request.width, height: request.height, motion: request.motion || 'push-in' })), route, provider: 'motion-fallback' } };
-    } catch (error) {
-      return { status: 422, body: { status: 'failed', kind, route, error: error.message, fallback: true } };
-    }
+  if (kind === 'video' && process.env.AIVM_ENABLE_MOTION_FALLBACK !== '0' && inputImage) {
+    try { return { status: 200, body: { ...(await createMotionFallback({ inputImage, mediaRoot: MEDIA_ROOT, duration: request.duration, fps: request.fps || 24, width: request.width, height: request.height, motion: request.motion || 'push-in' })), route, provider: 'motion-fallback' } }; }
+    catch (error) { return { status: 422, body: { status: 'failed', kind, route, error: error.message, fallback: true } }; }
   }
-
   if (route.provider === 'unavailable') return { status: 503, body: { status: 'unavailable', kind, route, diagnostics: report, message: `No safe ${kind} AI generation route is available on this machine.`, nextStep: 'Configure a compatible local GPU runner or a supported remote provider.' } };
   return { status: 503, body: { status: 'unavailable', kind, route, error: `No safe local ${kind} runner configured.` } };
 }
 
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') return json(res, 204, {});
-  if (req.method === 'GET' && req.url === '/health') return json(res, 200, { ok: true, service: 'aivm-local-bridge', version: 9, loopbackOnly: true, mock: process.env.AIVM_MOCK === '1', ffmpeg: process.env.AIVM_FFMPEG || 'ffmpeg', mediaRoot: MEDIA_ROOT, runners: Object.fromEntries(Object.entries(RUNNERS).map(([k]) => [k, !!runnerFor(k) || !!comfyFor(k)])), comfyui: { enabled: !!process.env.AIVM_COMFYUI_URL, image: comfyConfigured('image'), video: comfyConfigured('video'), voice: comfyConfigured('voice'), audio: comfyConfigured('audio') }, workflows: await getWorkflowStatuses(), queue: generationQueue.stats(), imageFallback: { enabled: process.env.AIVM_ENABLE_IMAGE_FALLBACK !== '0', productionQuality: false }, motionFallback: { enabled: process.env.AIVM_ENABLE_MOTION_FALLBACK !== '0', video: true } });
+  if (req.method === 'GET' && req.url === '/health') return json(res, 200, { ok: true, service: 'aivm-local-bridge', version: 10, loopbackOnly: true, mock: process.env.AIVM_MOCK === '1', ffmpeg: process.env.AIVM_FFMPEG || 'ffmpeg', mediaRoot: MEDIA_ROOT, runners: Object.fromEntries(Object.entries(RUNNERS).map(([k]) => [k, !!runnerFor(k) || !!comfyFor(k)])), comfyui: { enabled: !!process.env.AIVM_COMFYUI_URL, image: comfyConfigured('image'), video: comfyConfigured('video'), voice: comfyConfigured('voice'), audio: comfyConfigured('audio') }, workflows: await getWorkflowStatuses(), queue: generationQueue.stats(), imageFallback: { enabled: process.env.AIVM_ENABLE_IMAGE_FALLBACK !== '0', productionQuality: false }, motionFallback: { enabled: process.env.AIVM_ENABLE_MOTION_FALLBACK !== '0', video: true } });
   if (req.method === 'GET' && req.url === '/v1/jobs') return json(res, 200, generationQueue.stats());
   const jobMatch = req.method === 'GET' && /^\/v1\/jobs\/([^/]+)$/.exec(req.url || '');
   if (jobMatch) { const job = generationQueue.get(jobMatch[1]); return json(res, job ? 200 : 404, job || { status: 'not_found' }); }
