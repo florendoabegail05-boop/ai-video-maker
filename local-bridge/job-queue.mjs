@@ -11,11 +11,12 @@ export class LocalJobQueue {
 
   add(kind, task, options = {}) {
     const id = options.id || `job-${Date.now()}-${this.nextId++}`;
-    const job = { id, kind, task, retries: 0, status: 'queued', createdAt: new Date().toISOString(), startedAt: null, finishedAt: null, error: null };
+    const job = { id, kind, task, retries: 0, status: 'queued', createdAt: new Date().toISOString(), startedAt: null, finishedAt: null, error: null, resolve: null, reject: null };
+    const promise = new Promise((resolve, reject) => { job.resolve = resolve; job.reject = reject; });
     this.jobs.set(id, job);
     this.pending.push(job);
     this.#drain();
-    return id;
+    return { id, promise };
   }
 
   get(id) {
@@ -24,39 +25,39 @@ export class LocalJobQueue {
     return { id: job.id, kind: job.kind, status: job.status, retries: job.retries, createdAt: job.createdAt, startedAt: job.startedAt, finishedAt: job.finishedAt, error: job.error };
   }
 
-  stats() {
-    return { active: this.active, queued: this.pending.length, totalTracked: this.jobs.size, concurrency: this.concurrency, maxRetries: this.maxRetries };
-  }
+  stats() { return { active: this.active, queued: this.pending.length, totalTracked: this.jobs.size, concurrency: this.concurrency, maxRetries: this.maxRetries }; }
 
   async #run(job) {
     this.active += 1;
     job.status = 'running';
     job.startedAt = job.startedAt || new Date().toISOString();
     try {
-      const result = await job.task(job);
+      let result;
+      while (true) {
+        try { result = await job.task(job); break; }
+        catch (error) {
+          job.error = error?.message || String(error);
+          if (job.retries >= this.maxRetries || error?.retryable === false) throw error;
+          job.retries += 1;
+          job.status = 'retrying';
+          await new Promise(resolve => setTimeout(resolve, Math.min(5000, 1000 * job.retries)));
+          job.status = 'running';
+        }
+      }
       job.status = 'completed';
       job.finishedAt = new Date().toISOString();
-      return result;
+      job.resolve(result);
     } catch (error) {
-      job.error = error?.message || String(error);
-      if (job.retries < this.maxRetries && error?.retryable !== false) {
-        job.retries += 1;
-        job.status = 'retrying';
-        await new Promise(resolve => setTimeout(resolve, Math.min(5000, 1000 * job.retries)));
-        return this.#run(job);
-      }
       job.status = 'failed';
       job.finishedAt = new Date().toISOString();
-      throw error;
-    } finally {
-      this.active -= 1;
-    }
+      job.reject(error);
+    } finally { this.active -= 1; }
   }
 
   #drain() {
     while (this.active < this.concurrency && this.pending.length) {
       const job = this.pending.shift();
-      this.#run(job).catch(() => {}).finally(() => this.#drain());
+      this.#run(job).finally(() => this.#drain());
     }
   }
 }
