@@ -10,6 +10,7 @@ import { comfyConfigured, runComfyWorkflow } from './comfyui-runner.mjs';
 import { createMotionFallback } from './motion-fallback.mjs';
 import { createImageFallback } from './image-fallback.mjs';
 import { diagnostics, routeKind } from './hardware-diagnostics.mjs';
+import { LocalJobQueue } from './job-queue.mjs';
 
 const HOST = '127.0.0.1';
 const PORT = Number(process.env.AIVM_PORT || 8787);
@@ -18,6 +19,8 @@ const MEDIA_ROOT = process.env.AIVM_MEDIA_ROOT || path.join(process.cwd(), 'medi
 const RUNNERS = Object.freeze({ image: process.env.AIVM_IMAGE_RUNNER || '', video: process.env.AIVM_VIDEO_RUNNER || '', voice: process.env.AIVM_VOICE_RUNNER || '', audio: process.env.AIVM_AUDIO_RUNNER || '' });
 const exportsByJob = new Map();
 const diagnosticsCache = { value: null, expires: 0 };
+const generationQueue = new LocalJobQueue({ concurrency: Number(process.env.AIVM_GENERATION_CONCURRENCY || 1), maxRetries: 0 });
+
 function json(res, status, payload) { const body = JSON.stringify(payload); res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'content-length': Buffer.byteLength(body), 'cache-control': 'no-store', 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET,POST,OPTIONS', 'access-control-allow-headers': 'content-type' }); res.end(body); }
 function readJson(req) { return new Promise((resolve, reject) => { let size = 0; const chunks = []; req.on('data', chunk => { size += chunk.length; if (size > MAX_BODY) { reject(Object.assign(new Error('Request body too large.'), { status: 413 })); req.destroy(); return; } chunks.push(chunk); }); req.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); } catch { reject(Object.assign(new Error('Request body must be valid JSON.'), { status: 400 })); } }); req.on('error', reject); }); }
 function runnerFor(kind) { const url = RUNNERS[kind]; if (!url) return null; try { const parsed = new URL(url); if (parsed.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(parsed.hostname)) return null; return parsed; } catch { return null; } }
@@ -26,15 +29,13 @@ function workflowFor(kind) { return process.env[`AIVM_COMFYUI_WORKFLOW_${kind.to
 async function workflowStatus(kind) { const configured = !!workflowFor(kind); if (!configured) return { configured: false, exists: false, path: null }; const file = path.resolve(workflowFor(kind)); try { await fsp.access(file, fs.constants.R_OK); return { configured: true, exists: true, path: file }; } catch { return { configured: true, exists: false, path: file }; } }
 async function getWorkflowStatuses() { return Object.fromEntries(await Promise.all(['image', 'video', 'voice', 'audio'].map(async kind => [kind, await workflowStatus(kind)]))); }
 async function getDiagnostics(force = false) { if (!force && diagnosticsCache.value && diagnosticsCache.expires > Date.now()) return diagnosticsCache.value; const value = await diagnostics(); diagnosticsCache.value = value; diagnosticsCache.expires = Date.now() + 15000; return value; }
+
 async function forward(kind, request) {
   const report = await getDiagnostics();
   const route = routeKind(kind, report);
   const comfy = comfyFor(kind);
   const runner = runnerFor(kind);
 
-  // Safety gate: never send work to ComfyUI when diagnostics say the local
-  // hardware is unavailable. This prevents CPU-only/low-RAM machines from
-  // attempting large Wan workflows and crashing at model load time.
   if (comfy && route.provider === 'local' && report.capabilities?.[`local_${kind === 'voice' || kind === 'audio' ? 'tts' : kind}`] !== 'unavailable') {
     try {
       return { status: 200, body: await runComfyWorkflow({ base: comfy.toString(), workflowFile: workflowFor(kind), request, kind, mediaRoot: MEDIA_ROOT }) };
@@ -43,8 +44,6 @@ async function forward(kind, request) {
     }
   }
 
-  // A configured localhost runner can be used when the main local route is
-  // limited/unavailable. It is intentionally restricted to loopback URLs.
   if (runner) {
     try {
       const response = await fetch(runner, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...request, requestId: request.requestId || randomUUID(), kind }) });
@@ -56,7 +55,6 @@ async function forward(kind, request) {
     }
   }
 
-  // Zero-cost image fallback: deterministic preview still, not production AI.
   if (kind === 'image' && process.env.AIVM_ENABLE_IMAGE_FALLBACK !== '0') {
     return { status: 200, body: { ...(await createImageFallback({ prompt: request.prompt || request.text || 'AI Video Maker preview', mediaRoot: MEDIA_ROOT, width: request.width || (request.aspectRatio === '9:16' ? 576 : 1024), height: request.height || (request.aspectRatio === '9:16' ? 1024 : 576) })), route, provider: 'fallback' } };
   }
@@ -71,22 +69,35 @@ async function forward(kind, request) {
     }
   }
 
-  if (route.provider === 'unavailable') {
-    return { status: 503, body: { status: 'unavailable', kind, route, diagnostics: report, message: `No safe ${kind} AI generation route is available on this machine.`, nextStep: 'Configure a compatible local GPU runner or a supported remote provider.' } };
-  }
+  if (route.provider === 'unavailable') return { status: 503, body: { status: 'unavailable', kind, route, diagnostics: report, message: `No safe ${kind} AI generation route is available on this machine.`, nextStep: 'Configure a compatible local GPU runner or a supported remote provider.' } };
   return { status: 503, body: { status: 'unavailable', kind, route, error: `No safe local ${kind} runner configured.` } };
 }
+
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') return json(res, 204, {});
-  if (req.method === 'GET' && req.url === '/health') return json(res, 200, { ok: true, service: 'aivm-local-bridge', version: 8, loopbackOnly: true, mock: process.env.AIVM_MOCK === '1', ffmpeg: process.env.AIVM_FFMPEG || 'ffmpeg', mediaRoot: MEDIA_ROOT, runners: Object.fromEntries(Object.entries(RUNNERS).map(([k]) => [k, !!runnerFor(k) || !!comfyFor(k)])), comfyui: { enabled: !!process.env.AIVM_COMFYUI_URL, image: comfyConfigured('image'), video: comfyConfigured('video'), voice: comfyConfigured('voice'), audio: comfyConfigured('audio') }, workflows: await getWorkflowStatuses(), imageFallback: { enabled: process.env.AIVM_ENABLE_IMAGE_FALLBACK !== '0', productionQuality: false }, motionFallback: { enabled: process.env.AIVM_ENABLE_MOTION_FALLBACK !== '0', video: true } });
+  if (req.method === 'GET' && req.url === '/health') return json(res, 200, { ok: true, service: 'aivm-local-bridge', version: 9, loopbackOnly: true, mock: process.env.AIVM_MOCK === '1', ffmpeg: process.env.AIVM_FFMPEG || 'ffmpeg', mediaRoot: MEDIA_ROOT, runners: Object.fromEntries(Object.entries(RUNNERS).map(([k]) => [k, !!runnerFor(k) || !!comfyFor(k)])), comfyui: { enabled: !!process.env.AIVM_COMFYUI_URL, image: comfyConfigured('image'), video: comfyConfigured('video'), voice: comfyConfigured('voice'), audio: comfyConfigured('audio') }, workflows: await getWorkflowStatuses(), queue: generationQueue.stats(), imageFallback: { enabled: process.env.AIVM_ENABLE_IMAGE_FALLBACK !== '0', productionQuality: false }, motionFallback: { enabled: process.env.AIVM_ENABLE_MOTION_FALLBACK !== '0', video: true } });
+  if (req.method === 'GET' && req.url === '/v1/jobs') return json(res, 200, generationQueue.stats());
+  const jobMatch = req.method === 'GET' && /^\/v1\/jobs\/([^/]+)$/.exec(req.url || '');
+  if (jobMatch) { const job = generationQueue.get(jobMatch[1]); return json(res, job ? 200 : 404, job || { status: 'not_found' }); }
   if (req.method === 'GET' && req.url === '/v1/diagnostics') { try { return json(res, 200, await getDiagnostics(true)); } catch (error) { return json(res, 502, { status: 'failed', error: error.message }); } }
-  if (req.method === 'GET' && req.url === '/v1/capabilities') { try { const report = await getDiagnostics(); return json(res, 200, { ...report, routes: Object.fromEntries(['image', 'video', 'voice', 'audio'].map(kind => [kind, routeKind(kind, report)])), workflows: await getWorkflowStatuses(), imageFallback: { enabled: process.env.AIVM_ENABLE_IMAGE_FALLBACK !== '0', productionQuality: false }, motionFallback: { enabled: process.env.AIVM_ENABLE_MOTION_FALLBACK !== '0', video: true } }); } catch (error) { return json(res, 502, { status: 'failed', error: error.message }); } }
+  if (req.method === 'GET' && req.url === '/v1/capabilities') { try { const report = await getDiagnostics(); return json(res, 200, { ...report, routes: Object.fromEntries(['image', 'video', 'voice', 'audio'].map(kind => [kind, routeKind(kind, report)])), workflows: await getWorkflowStatuses(), queue: generationQueue.stats(), imageFallback: { enabled: process.env.AIVM_ENABLE_IMAGE_FALLBACK !== '0', productionQuality: false }, motionFallback: { enabled: process.env.AIVM_ENABLE_MOTION_FALLBACK !== '0', video: true } }); } catch (error) { return json(res, 502, { status: 'failed', error: error.message }); } }
   const exportMatch = req.method === 'GET' && /^\/v1\/exports\/([a-f0-9-]+)$/.exec(req.url || '');
   if (exportMatch) { const file = exportsByJob.get(exportMatch[1]); if (!file) return json(res, 404, { status: 'not_found', error: 'Export job not found or bridge was restarted.' }); return fs.stat(file, (error, stat) => { if (error) return json(res, 404, { status: 'not_found', error: 'Export file is no longer available.' }); res.writeHead(200, { 'content-type': 'video/mp4', 'content-length': stat.size, 'cache-control': 'no-store', 'access-control-allow-origin': '*', 'content-disposition': 'attachment; filename="ai-video-maker.mp4"' }); fs.createReadStream(file).pipe(res); }); }
   if (req.method === 'POST' && req.url === '/v1/inspect') { try { const request = await readJson(req); return json(res, 200, await inspectMedia(request.path)); } catch (error) { return json(res, error.status || 422, { status: 'failed', error: error.message || 'Inspection failed.' }); } }
   if (req.method === 'POST' && req.url === '/v1/assemble') { try { const request = await readJson(req); const result = await assemble(request.clips, request); exportsByJob.set(result.jobId, result.outputPath); while (exportsByJob.size > 10) exportsByJob.delete(exportsByJob.keys().next().value); return json(res, 200, { ...result, downloadUrl: `/v1/exports/${result.jobId}`, qc: result.qc }); } catch (error) { return json(res, error.status || 502, { status: 'failed', error: error.message || 'Assembly failed.' }); } }
   const match = req.method === 'POST' && /^\/v1\/generate\/(image|video|voice|audio)$/.exec(req.url || '');
-  if (match) { const kind = match[1]; try { const request = await readJson(req); if (!request.prompt && !request.text && !request.input && !request.imageInput && !request.sourceAsset) return json(res, 400, { status: 'invalid', error: 'A prompt, text, or input is required.' }); if (process.env.AIVM_MOCK === '1') return json(res, 200, { status: 'completed', mock: true, kind, requestId: request.requestId || randomUUID(), asset: null, note: 'Mock contract response only; no media was generated.' }); const result = await forward(kind, request); return json(res, result.status, result.body); } catch (error) { return json(res, error.status || 502, { status: 'failed', error: error.message || 'Local runner request failed.' }); } }
+  if (match) {
+    const kind = match[1];
+    try {
+      const request = await readJson(req);
+      if (!request.prompt && !request.text && !request.input && !request.imageInput && !request.sourceAsset) return json(res, 400, { status: 'invalid', error: 'A prompt, text, or input is required.' });
+      if (process.env.AIVM_MOCK === '1') return json(res, 200, { status: 'completed', mock: true, kind, requestId: request.requestId || randomUUID(), asset: null, note: 'Mock contract response only; no media was generated.' });
+      const requestId = request.requestId || randomUUID();
+      const queued = generationQueue.add(kind, () => forward(kind, { ...request, requestId }), { id: requestId });
+      const result = await queued.promise;
+      return json(res, result.status, { ...result.body, requestId, jobId: queued.id });
+    } catch (error) { return json(res, error.status || 502, { status: 'failed', error: error.message || 'Local runner request failed.' }); }
+  }
   return json(res, 404, { status: 'not_found' });
 });
-server.listen(PORT, HOST, () => { console.log(`AI Video Maker local bridge listening on http://${HOST}:${PORT}`); console.log('Loopback only. No arbitrary shell execution.'); });
+server.listen(PORT, HOST, () => { console.log(`AI Video Maker local bridge listening on http://${HOST}:${PORT}`); console.log('Loopback only. No arbitrary shell execution.'); console.log(`Generation queue: concurrency=${generationQueue.concurrency}, retries=${generationQueue.maxRetries}`); });
