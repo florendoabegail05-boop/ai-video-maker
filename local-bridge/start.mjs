@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
+import { preflightHeavyGeneration } from './generation-preflight.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const envFile = path.join(root, '.env');
@@ -34,10 +35,17 @@ for (const kind of ['IMAGE', 'VIDEO', 'VOICE', 'AUDIO']) {
 
 for (const dir of [process.env.AIVM_MEDIA_ROOT, process.env.AIVM_OUTPUT_ROOT]) fs.mkdirSync(dir, { recursive: true });
 
+const safety = preflightHeavyGeneration({ mediaRoot: process.env.AIVM_MEDIA_ROOT, estimatedBytes: Number(process.env.AIVM_PREFLIGHT_ESTIMATED_BYTES || 0), minFreeMemoryBytes: Number(process.env.AIVM_MIN_FREE_MEMORY_BYTES || 2 * 1024 ** 3) });
+if (!safety.ok) {
+  console.error(`Safety preflight blocked startup: ${safety.code} — ${safety.message}`);
+  process.exit(78);
+}
+
 console.log('AI Video Maker local bridge');
 console.log(`Media: ${process.env.AIVM_MEDIA_ROOT}`);
 console.log(`Exports: ${process.env.AIVM_OUTPUT_ROOT}`);
 console.log(`ComfyUI: ${process.env.AIVM_COMFYUI_URL}`);
+console.log(`Safety preflight: OK (${Math.round(safety.resources.freeMemoryBytes / 1024 ** 3 * 10) / 10} GB free memory)`);
 console.log('Cost mode: $0 / local only');
 console.log('Starting loopback bridge…');
 
