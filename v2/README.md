@@ -101,3 +101,5 @@ Scene cards now accept image, video or audio files up to 100 MB each. Files stay
 ## Local preview generation
 
 Start the local bridge with `node local-bridge/server.mjs`, serve the repository with `python3 -m http.server 8000`, and open `http://localhost:8000/v2/`. Select **Check local bridge**, create a scene plan, then select **Generate local preview** for one scene. The bridge uses a configured local runner when available, or its basic illustration-like PPM fallback. The fallback is a draft still, not photorealistic AI output. Generated files are copied into the browser asset library and can be exported from their scene. Mock mode explicitly refuses to create an asset. No paid service is called by this V2 route. The bridge runs on your own computer; a remotely hosted page cannot access a local bridge unless your browser permits the loopback connection.
+
+Imported images, video and audio now have an in-page **Preview** action. The built-in PPM draft still can also be previewed in the browser through a small local decoder. Media stays on the device and preview object URLs are replaced when another asset is opened.
