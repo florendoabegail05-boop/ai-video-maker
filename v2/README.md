@@ -125,3 +125,7 @@ Use **Import audio** to add one music/ambience track and/or one voice track to a
 ## Optional captions
 
 Each scene has an optional caption field (up to 160 characters). Save the caption; the final MP4 burns it in at the scene's current timeline position. Reordering scenes changes caption timing automatically. The app does not invent speech or transcript text. FFmpeg must have subtitle rendering support for captioned export; an export failure leaves all scene assets intact.
+
+## Restore project metadata
+
+Use **Export project metadata JSON** for a planning backup, then **Restore project JSON** to load it. Restore validates the V2 FREE ONLY schema and refuses to overwrite an existing project with the same ID. The JSON does **not** contain media bytes. If restored in a different browser, missing media is marked explicitly and its old local bridge path is cleared; import or generate replacement media for those scenes. For complete backup, export each media file separately as well. The project JSON limit for restore is 1 MB.
