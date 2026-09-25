@@ -117,3 +117,7 @@ For each scene, select **Generate local preview**, then **Animate this still**. 
 **Create draft video** walks scenes in timeline order, generates a basic local still and camera-motion clip where needed, then assembles the final MP4. Each completed asset is saved before the next scene, so running the button again resumes from existing clips. Kept or locked assets are preferred; invalidated candidates are skipped. This uses the bridge's FREE ONLY fallback and cannot invoke a configured runner. It is a draft workflow with no voice, music, lip-sync or AI-generated action yet.
 
 Each final export uses a unique filename in the bridge's local media folder, so repeating assembly does not overwrite a prior MP4. Browser download links remain session-bound to the bridge process.
+
+## Optional local audio
+
+Use **Import audio** to add one music/ambience track and/or one voice track to a project. Accepted files are WAV, MP3, M4A, OGG and FLAC up to 20 MB each. The bridge validates that each upload contains audio and no video, then the final assembler mixes selected tracks into the MP4 and checks for a resulting audio stream. Imported originals are also kept in the browser asset store for preview and individual export. Replacing a role chooses the latest imported track; old files are preserved. These are user-supplied tracks, not generated voices, music or lip-sync. Serve V2 from localhost for the bridge's local-origin upload check.
