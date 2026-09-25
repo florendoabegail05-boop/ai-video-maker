@@ -111,3 +111,7 @@ Use **Move earlier/later** to reorder scenes without changing their IDs or asset
 ## First end-to-end MP4 route
 
 For each scene, select **Generate local preview**, then **Animate this still**. When all scenes have local clips, select **Assemble final MP4**. The bridge creates a basic camera-motion clip from each still using local FFmpeg, joins clips in timeline order, checks the resulting video, and offers a 1080×1920 MP4 download. This is a functional $0 workflow, **not photorealistic AI motion**. On the current low-power laptop, a 30–60 second 1080p export may be slow; the preview clips render at 360×640 and are scaled for final export. The download link lasts until the bridge restarts. Run `node --test v2/end-to-end.test.mjs` for a small real media smoke test.
+
+## One-button draft
+
+**Create draft video** walks scenes in timeline order, generates a basic local still and camera-motion clip where needed, then assembles the final MP4. Each completed asset is saved before the next scene, so running the button again resumes from existing clips. Kept or locked assets are preferred; invalidated candidates are skipped. This uses the bridge's FREE ONLY fallback and cannot invoke a configured runner. It is a draft workflow with no voice, music, lip-sync or AI-generated action yet.
