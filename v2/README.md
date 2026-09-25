@@ -121,3 +121,7 @@ Each final export uses a unique filename in the bridge's local media folder, so 
 ## Optional local audio
 
 Use **Import audio** to add one music/ambience track and/or one voice track to a project. Accepted files are WAV, MP3, M4A, OGG and FLAC up to 20 MB each. The bridge validates that each upload contains audio and no video, then the final assembler mixes selected tracks into the MP4 and checks for a resulting audio stream. Imported originals are also kept in the browser asset store for preview and individual export. Replacing a role chooses the latest imported track; old files are preserved. These are user-supplied tracks, not generated voices, music or lip-sync. Serve V2 from localhost for the bridge's local-origin upload check.
+
+## Optional captions
+
+Each scene has an optional caption field (up to 160 characters). Save the caption; the final MP4 burns it in at the scene's current timeline position. Reordering scenes changes caption timing automatically. The app does not invent speech or transcript text. FFmpeg must have subtitle rendering support for captioned export; an export failure leaves all scene assets intact.
