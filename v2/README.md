@@ -107,3 +107,7 @@ Imported images, video and audio now have an in-page **Preview** action. The bui
 ## Timeline editing
 
 Use **Move earlier/later** to reorder scenes without changing their IDs or asset associations. Edit a scene's text and select **Save scene prompt** before generating its preview. **Undo last change** restores the previous scene and asset metadata state. File bytes in IndexedDB are retained; undo does not delete imported or generated files. Project history keeps the latest ten metadata snapshots.
+
+## First end-to-end MP4 route
+
+For each scene, select **Generate local preview**, then **Animate this still**. When all scenes have local clips, select **Assemble final MP4**. The bridge creates a basic camera-motion clip from each still using local FFmpeg, joins clips in timeline order, checks the resulting video, and offers a 1080×1920 MP4 download. This is a functional $0 workflow, **not photorealistic AI motion**. On the current low-power laptop, a 30–60 second 1080p export may be slow; the preview clips render at 360×640 and are scaled for final export. The download link lasts until the bridge restarts. Run `node --test v2/end-to-end.test.mjs` for a small real media smoke test.

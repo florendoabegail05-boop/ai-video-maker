@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 
 const FFMPEG = process.env.AIVM_FFMPEG || 'ffmpeg';
 const FFPROBE = process.env.AIVM_FFPROBE || 'ffprobe';
-const MEDIA_ROOT = path.resolve(process.env.AIVM_MEDIA_ROOT || path.join(os.homedir(), 'aivm-media'));
+const MEDIA_ROOT = path.resolve(process.env.AIVM_MEDIA_ROOT || path.join(process.cwd(), 'media'));
 const OUTPUT_ROOT = path.resolve(process.env.AIVM_OUTPUT_ROOT || path.join(MEDIA_ROOT, 'exports'));
 function inside(root, candidate) { const relative = path.relative(root, path.resolve(candidate)); return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative)); }
 function safeInput(value) { if (typeof value !== 'string' || !value.trim()) throw new Error('Each media input needs a file path.'); const file = path.resolve(value); if (!inside(MEDIA_ROOT, file)) throw new Error('Input file is outside the configured media root.'); return file; }

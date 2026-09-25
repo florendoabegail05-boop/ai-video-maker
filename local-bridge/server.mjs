@@ -37,7 +37,7 @@ async function forward(kind, request) {
   const comfy = comfyFor(kind);
   const runner = runnerFor(kind);
 
-  if (comfy && route.provider === 'local' && report.capabilities?.[`local_${kind === 'voice' || kind === 'audio' ? 'tts' : kind}`] !== 'unavailable') {
+  if (!request.freeOnly && comfy && route.provider === 'local' && report.capabilities?.[`local_${kind === 'voice' || kind === 'audio' ? 'tts' : kind}`] !== 'unavailable') {
     try {
       return { status: 200, body: await runComfyWorkflow({ base: comfy.toString(), workflowFile: workflowFor(kind), request, kind, mediaRoot: MEDIA_ROOT }) };
     } catch (error) {
@@ -45,7 +45,7 @@ async function forward(kind, request) {
     }
   }
 
-  if (runner) {
+  if (!request.freeOnly && runner) {
     try {
       const response = await fetch(runner, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...request, requestId: request.requestId || randomUUID(), kind }) });
       const text = await response.text(); let body;
