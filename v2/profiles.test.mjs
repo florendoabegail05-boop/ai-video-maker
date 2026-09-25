@@ -1,0 +1,2 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {profileFor} from './profiles.mjs';
+test('light mode is safe default and stronger mode increases only preview dimensions',()=>{assert.deepEqual(profileFor('unknown'),profileFor('light'));assert.equal(profileFor('light').width,360);assert.ok(profileFor('strong').width>profileFor('balanced').width);assert.ok(profileFor('strong').width<1080);});

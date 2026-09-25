@@ -1,7 +1,7 @@
 export const KEY='aivm.v2.projects.v1';
 const id=()=>crypto.randomUUID();
 export function createProject(prompt,name='Untitled project'){
- if(!prompt?.trim())throw Error('Enter a video idea.');const now=new Date().toISOString();return{schema:1,id:id(),name:name.trim()||'Untitled project',prompt:prompt.trim(),style:'custom',costMode:'FREE ONLY',createdAt:now,updatedAt:now,revision:1,scenes:[],assets:[],history:[]};
+ if(!prompt?.trim())throw Error('Enter a video idea.');const now=new Date().toISOString();return{schema:1,id:id(),name:name.trim()||'Untitled project',prompt:prompt.trim(),style:'custom',hardwareMode:'light',costMode:'FREE ONLY',createdAt:now,updatedAt:now,revision:1,scenes:[],assets:[],history:[]};
 }
 export function revise(old,next){const snapshot={revision:old.revision,name:old.name,prompt:old.prompt,style:old.style,scenes:old.scenes,assets:old.assets,at:old.updatedAt};return{...next,revision:old.revision+1,updatedAt:new Date().toISOString(),history:[...old.history,snapshot].slice(-10)};}
 export function planScenes(project,seconds=30){const beats=['Establish setting and subject','Introduce the goal','Show an action','Develop the action','Show the result','Close with a visual payoff'];const count=Math.min(12,Math.max(1,Math.ceil(seconds/5)));return revise(project,{...project,scenes:Array.from({length:count},(_,i)=>{const beat=beats[Math.min(5,Math.floor(i*6/count))];return{id:id(),order:i+1,duration:Math.min(5,seconds-i*5),beat,prompt:`${project.prompt}\nStyle: ${project.style}. Scene ${i+1}/${count}: ${beat}. Preserve identity, wardrobe, setting, lighting direction and object positions across cuts.`,status:'planned',assetIds:[]};})});}

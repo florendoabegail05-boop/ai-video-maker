@@ -129,3 +129,7 @@ Each scene has an optional caption field (up to 160 characters). Save the captio
 ## Restore project metadata
 
 Use **Export project metadata JSON** for a planning backup, then **Restore project JSON** to load it. Restore validates the V2 FREE ONLY schema and refuses to overwrite an existing project with the same ID. The JSON does **not** contain media bytes. If restored in a different browser, missing media is marked explicitly and its old local bridge path is cleared; import or generate replacement media for those scenes. For complete backup, export each media file separately as well. The project JSON limit for restore is 1 MB.
+
+## Hardware modes
+
+New projects default to **Light laptop** (360×640 preview at 24 fps), suited to the current low-power machine. **Balanced** uses 576×1024 at 24 fps; **Stronger laptop** uses 720×1280 at 30 fps. Changing modes saves with the project and affects future generated previews and clips; existing approved media is reused. The assembled final remains 1080×1920 when FFmpeg passes its export check. Upscaling a small source does not create missing visual detail. No 4K label or paid provider is enabled.
