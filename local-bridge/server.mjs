@@ -44,6 +44,9 @@ async function forward(kind, request) {
     try {
       return { status: 200, body: await runComfyWorkflow({ base: comfy.toString(), workflowFile: workflowFor(kind), request, kind, mediaRoot: MEDIA_ROOT }) };
     } catch (error) {
+      if (request.freeOnly && kind === 'image' && process.env.AIVM_ENABLE_IMAGE_FALLBACK !== '0') {
+        return { status: 200, body: { ...(await createImageFallback({ prompt: request.prompt || 'AI Video Maker preview', mediaRoot: MEDIA_ROOT, width: request.width || 576, height: request.height || 1024 })), route, provider: 'fallback', fallbackReason: 'Verified local workflow failed; basic draft still used.' } };
+      }
       return { status: 502, body: { status: 'failed', kind, route, provider: 'comfyui', error: error.message || 'ComfyUI generation failed.', safeFallbackAvailable: kind === 'video' ? !!(request.imageInput || request.sourceAsset || request.input) : kind === 'image' } };
     }
   }

@@ -145,3 +145,5 @@ The V2 studio lists all scene images, clips and project audio in one place. Filt
 ## Verified free local ComfyUI image route
 
 When a configured ComfyUI image workflow uses only the bridge's allowlisted local core image nodes and its URL points to loopback HTTP, FREE ONLY may use that workflow if local hardware diagnostics allow it. Unknown/custom nodes, remote URLs and arbitrary runner endpoints remain excluded in FREE ONLY mode; the simple still fallback remains available. This guard evaluates the workflow graph, not the trustworthiness of an arbitrary modified ComfyUI installation. Video generation remains the local FFmpeg camera-motion fallback until a similarly verified free video route is implemented.
+
+If an allowed local image workflow fails, FREE ONLY falls back to its basic still generator when enabled, preserving progress and reporting the fallback in the bridge response. A missing or untrusted workflow is never sent to a remote runner by V2.
