@@ -137,3 +137,7 @@ New projects default to **Light laptop** (360×640 preview at 24 fps), suited to
 ## Character and world references
 
 The project can store a character description, world description and visual rules. These are appended to future scene generation prompts and kept in project revisions. Editing them does not overwrite prior stills or locked assets. The built-in illustration fallback is deterministic but cannot guarantee character identity; a capable free local model would need to use these instructions and eventually image references for actual visual consistency.
+
+## Project Assets panel
+
+The V2 studio lists all scene images, clips and project audio in one place. Filter by kind or locked status, preview/export individual files, and jump to their scene. The panel reports the saved asset state; a missing file remains explicitly marked after metadata-only restore.
