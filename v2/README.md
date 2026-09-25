@@ -147,3 +147,9 @@ The V2 studio lists all scene images, clips and project audio in one place. Filt
 When a configured ComfyUI image workflow uses only the bridge's allowlisted local core image nodes and its URL points to loopback HTTP, FREE ONLY may use that workflow if local hardware diagnostics allow it. Unknown/custom nodes, remote URLs and arbitrary runner endpoints remain excluded in FREE ONLY mode; the simple still fallback remains available. This guard evaluates the workflow graph, not the trustworthiness of an arbitrary modified ComfyUI installation. Video generation remains the local FFmpeg camera-motion fallback until a similarly verified free video route is implemented.
 
 If an allowed local image workflow fails, FREE ONLY falls back to its basic still generator when enabled, preserving progress and reporting the fallback in the bridge response. A missing or untrusted workflow is never sent to a remote runner by V2.
+
+## One-command local launch
+
+With Node.js 18+ and FFmpeg installed, run `node v2/start.mjs` from the repository root and open `http://127.0.0.1:8000/v2/`. This starts the V2 static page and the loopback bridge together. Generated files go under `AIVM-V2-Media` in the computer's home directory by default, outside the Git checkout. Stop with Ctrl+C. The launcher serves only ordinary static app extensions, blocks hidden files and path traversal, and does not contact a paid provider. The older two-command setup remains usable.
+
+The V2 launcher reserves bridge port `8787`, matching the browser app. If another process owns that port, stop that process before launching V2; the launcher does not silently redirect the app to another service. `AIVM_V2_WEB_PORT` can change only the static page port.
