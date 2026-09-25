@@ -141,3 +141,7 @@ The project can store a character description, world description and visual rule
 ## Project Assets panel
 
 The V2 studio lists all scene images, clips and project audio in one place. Filter by kind or locked status, preview/export individual files, and jump to their scene. The panel reports the saved asset state; a missing file remains explicitly marked after metadata-only restore.
+
+## Verified free local ComfyUI image route
+
+When a configured ComfyUI image workflow uses only the bridge's allowlisted local core image nodes and its URL points to loopback HTTP, FREE ONLY may use that workflow if local hardware diagnostics allow it. Unknown/custom nodes, remote URLs and arbitrary runner endpoints remain excluded in FREE ONLY mode; the simple still fallback remains available. This guard evaluates the workflow graph, not the trustworthiness of an arbitrary modified ComfyUI installation. Video generation remains the local FFmpeg camera-motion fallback until a similarly verified free video route is implemented.

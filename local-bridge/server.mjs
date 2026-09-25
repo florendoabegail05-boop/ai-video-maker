@@ -9,6 +9,7 @@ import { assemble, inspectMedia } from './assembler.mjs';
 import { comfyConfigured, runComfyWorkflow } from './comfyui-runner.mjs';
 import { createMotionFallback } from './motion-fallback.mjs';
 import { createImageFallback } from './image-fallback.mjs';
+import {verifiedFreeImageWorkflow,loopbackHttpUrl} from './free-workflow.mjs';
 import { diagnostics, routeKind } from './hardware-diagnostics.mjs';
 import { LocalJobQueue } from './job-queue.mjs';
 
@@ -27,7 +28,7 @@ function readJson(req) { return new Promise((resolve, reject) => { let size = 0;
 function localOrigin(req) { const origin = req.headers.origin; if (!origin) return true; try { const url = new URL(origin); return url.protocol === 'http:' && ['127.0.0.1','localhost'].includes(url.hostname); } catch { return false; } }
 function readAudio(req) { return new Promise((resolve,reject)=>{let size=0;const chunks=[];req.on('data',chunk=>{size+=chunk.length;if(size>20*1024*1024){reject(Object.assign(new Error('Audio upload exceeds 20 MB.'),{status:413}));req.destroy();return;}chunks.push(chunk);});req.on('end',()=>resolve(Buffer.concat(chunks)));req.on('error',reject);}); }
 function runnerFor(kind) { const url = RUNNERS[kind]; if (!url) return null; try { const parsed = new URL(url); if (parsed.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(parsed.hostname)) return null; return parsed; } catch { return null; } }
-function comfyFor(kind) { return process.env.AIVM_COMFYUI_URL && comfyConfigured(kind) ? new URL(process.env.AIVM_COMFYUI_URL) : null; }
+function comfyFor(kind) { return process.env.AIVM_COMFYUI_URL && comfyConfigured(kind) ? loopbackHttpUrl(process.env.AIVM_COMFYUI_URL) : null; }
 function workflowFor(kind) { return process.env[`AIVM_COMFYUI_WORKFLOW_${kind.toUpperCase()}`] || ''; }
 async function workflowStatus(kind) { const configured = !!workflowFor(kind); if (!configured) return { configured: false, exists: false, path: null }; const file = path.resolve(workflowFor(kind)); try { await fsp.access(file, fs.constants.R_OK); return { configured: true, exists: true, path: file }; } catch { return { configured: true, exists: false, path: file }; } }
 async function getWorkflowStatuses() { return Object.fromEntries(await Promise.all(['image', 'video', 'voice', 'audio'].map(async kind => [kind, await workflowStatus(kind)]))); }
@@ -39,7 +40,7 @@ async function forward(kind, request) {
   const comfy = comfyFor(kind);
   const runner = runnerFor(kind);
 
-  if (!request.freeOnly && comfy && route.provider === 'local' && report.capabilities?.[`local_${kind === 'voice' || kind === 'audio' ? 'tts' : kind}`] !== 'unavailable') {
+  if (comfy && (!request.freeOnly || (kind === 'image' && await verifiedFreeImageWorkflow(workflowFor(kind)))) && (request.freeOnly || route.provider === 'local') && report.capabilities?.[`local_${kind === 'voice' || kind === 'audio' ? 'tts' : kind}`] !== 'unavailable') {
     try {
       return { status: 200, body: await runComfyWorkflow({ base: comfy.toString(), workflowFile: workflowFor(kind), request, kind, mediaRoot: MEDIA_ROOT }) };
     } catch (error) {
@@ -78,7 +79,7 @@ async function forward(kind, request) {
 
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') return json(res, 204, {});
-  if (req.method === 'GET' && req.url === '/health') return json(res, 200, { ok: true, service: 'aivm-local-bridge', version: 9, loopbackOnly: true, mock: process.env.AIVM_MOCK === '1', ffmpeg: process.env.AIVM_FFMPEG || 'ffmpeg', mediaRoot: MEDIA_ROOT, runners: Object.fromEntries(Object.entries(RUNNERS).map(([k]) => [k, !!runnerFor(k) || !!comfyFor(k)])), comfyui: { enabled: !!process.env.AIVM_COMFYUI_URL, image: comfyConfigured('image'), video: comfyConfigured('video'), voice: comfyConfigured('voice'), audio: comfyConfigured('audio') }, workflows: await getWorkflowStatuses(), queue: generationQueue.stats(), imageFallback: { enabled: process.env.AIVM_ENABLE_IMAGE_FALLBACK !== '0', productionQuality: false }, motionFallback: { enabled: process.env.AIVM_ENABLE_MOTION_FALLBACK !== '0', video: true } });
+  if (req.method === 'GET' && req.url === '/health') return json(res, 200, { ok: true, service: 'aivm-local-bridge', version: 9, loopbackOnly: true, mock: process.env.AIVM_MOCK === '1', ffmpeg: process.env.AIVM_FFMPEG || 'ffmpeg', mediaRoot: MEDIA_ROOT, runners: Object.fromEntries(Object.entries(RUNNERS).map(([k]) => [k, !!runnerFor(k) || !!comfyFor(k)])), comfyui: { enabled: !!['image','video','voice','audio'].find(kind=>comfyFor(kind)), image: !!comfyFor('image'), video: !!comfyFor('video'), voice: !!comfyFor('voice'), audio: !!comfyFor('audio') }, workflows: await getWorkflowStatuses(), queue: generationQueue.stats(), imageFallback: { enabled: process.env.AIVM_ENABLE_IMAGE_FALLBACK !== '0', productionQuality: false }, motionFallback: { enabled: process.env.AIVM_ENABLE_MOTION_FALLBACK !== '0', video: true } });
   if (req.method === 'GET' && req.url === '/v1/jobs') return json(res, 200, generationQueue.stats());
   const jobMatch = req.method === 'GET' && /^\/v1\/jobs\/([^/]+)$/.exec(req.url || '');
   if (jobMatch) { const job = generationQueue.get(jobMatch[1]); return json(res, job ? 200 : 404, job || { status: 'not_found' }); }
