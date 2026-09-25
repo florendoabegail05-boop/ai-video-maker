@@ -18,6 +18,7 @@ const MAX_BODY = 2 * 1024 * 1024;
 const MEDIA_ROOT = process.env.AIVM_MEDIA_ROOT || path.join(process.cwd(), 'media');
 const RUNNERS = Object.freeze({ image: process.env.AIVM_IMAGE_RUNNER || '', video: process.env.AIVM_VIDEO_RUNNER || '', voice: process.env.AIVM_VOICE_RUNNER || '', audio: process.env.AIVM_AUDIO_RUNNER || '' });
 const exportsByJob = new Map();
+const generatedByJob = new Map();
 const diagnosticsCache = { value: null, expires: 0 };
 const generationQueue = new LocalJobQueue({ concurrency: Number(process.env.AIVM_GENERATION_CONCURRENCY || 1), maxRetries: 0 });
 
@@ -81,6 +82,13 @@ const server = http.createServer(async (req, res) => {
   if (jobMatch) { const job = generationQueue.get(jobMatch[1]); return json(res, job ? 200 : 404, job || { status: 'not_found' }); }
   if (req.method === 'GET' && req.url === '/v1/diagnostics') { try { return json(res, 200, await getDiagnostics(true)); } catch (error) { return json(res, 502, { status: 'failed', error: error.message }); } }
   if (req.method === 'GET' && req.url === '/v1/capabilities') { try { const report = await getDiagnostics(); return json(res, 200, { ...report, routes: Object.fromEntries(['image', 'video', 'voice', 'audio'].map(kind => [kind, routeKind(kind, report)])), workflows: await getWorkflowStatuses(), queue: generationQueue.stats(), imageFallback: { enabled: process.env.AIVM_ENABLE_IMAGE_FALLBACK !== '0', productionQuality: false }, motionFallback: { enabled: process.env.AIVM_ENABLE_MOTION_FALLBACK !== '0', video: true } }); } catch (error) { return json(res, 502, { status: 'failed', error: error.message }); } }
+  const assetMatch = req.method === 'GET' && /^\/v1\/assets\/([a-f0-9-]+)$/.exec(req.url || '');
+  if (assetMatch) {
+    const file = generatedByJob.get(assetMatch[1]);
+    if (!file) return json(res, 404, { status: 'not_found', error: 'Asset is not available.' });
+    try { const stat = await fsp.stat(file); const types = {'.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ppm':'image/x-portable-pixmap','.mp4':'video/mp4','.wav':'audio/wav','.mp3':'audio/mpeg'}; res.writeHead(200, { 'content-type': types[path.extname(file).toLowerCase()] || 'application/octet-stream', 'content-length': stat.size, 'cache-control':'no-store', 'access-control-allow-origin':'*', 'content-disposition':`attachment; filename="${path.basename(file)}"` }); return fs.createReadStream(file).pipe(res); }
+    catch { return json(res, 404, { status:'not_found', error:'Asset file is missing.' }); }
+  }
   const exportMatch = req.method === 'GET' && /^\/v1\/exports\/([a-f0-9-]+)$/.exec(req.url || '');
   if (exportMatch) { const file = exportsByJob.get(exportMatch[1]); if (!file) return json(res, 404, { status: 'not_found', error: 'Export job not found or bridge was restarted.' }); return fs.stat(file, (error, stat) => { if (error) return json(res, 404, { status: 'not_found', error: 'Export file is no longer available.' }); res.writeHead(200, { 'content-type': 'video/mp4', 'content-length': stat.size, 'cache-control': 'no-store', 'access-control-allow-origin': '*', 'content-disposition': 'attachment; filename="ai-video-maker.mp4"' }); fs.createReadStream(file).pipe(res); }); }
   if (req.method === 'POST' && req.url === '/v1/inspect') { try { const request = await readJson(req); return json(res, 200, await inspectMedia(request.path)); } catch (error) { return json(res, error.status || 422, { status: 'failed', error: error.message || 'Inspection failed.' }); } }
@@ -95,7 +103,14 @@ const server = http.createServer(async (req, res) => {
       const requestId = request.requestId || randomUUID();
       const queued = generationQueue.add(kind, () => forward(kind, { ...request, requestId }), { id: requestId });
       const result = await queued.promise;
-      return json(res, result.status, { ...result.body, requestId, jobId: queued.id });
+      const candidate = result.body?.asset?.path;
+      let assetDownloadUrl = null;
+      if (result.status < 300 && !result.body?.mock && typeof candidate === 'string') {
+        const root = (await fsp.realpath(MEDIA_ROOT)) + path.sep;
+        const resolved = await fsp.realpath(candidate).catch(() => '');
+        if (resolved.startsWith(root)) { generatedByJob.set(queued.id, resolved); assetDownloadUrl = `/v1/assets/${queued.id}`; while (generatedByJob.size > 100) generatedByJob.delete(generatedByJob.keys().next().value); }
+      }
+      return json(res, result.status, { ...result.body, requestId, jobId: queued.id, assetDownloadUrl });
     } catch (error) { return json(res, error.status || 502, { status: 'failed', error: error.message || 'Local runner request failed.' }); }
   }
   return json(res, 404, { status: 'not_found' });
