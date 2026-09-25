@@ -89,3 +89,11 @@ Any mode capable of spending money requires explicit owner opt-in before provide
 11. publishing package
 12. end-to-end tests
 
+
+## Working milestone: local storyboard (September 2026)
+
+Open `v2/index.html` through a local static server (for example `python3 -m http.server 8000` at repository root, then `/v2/`). This standalone V2 page does not alter V1. Enter a prompt, style and duration to create a 5-second scene plan. Projects autosave in this browser's localStorage with the most recent ten metadata revisions. Add asset *records*, keep or lock them, mark references or animation work, and revise one scene while retaining locked assets. Export project metadata as JSON for backup. No media files are generated or stored yet; the asset actions are planning state, not image/video processing. Avoid clearing browser storage without exporting first. Run `node --test v2/core.test.mjs`.
+
+## Local asset files
+
+Scene cards now accept image, video or audio files up to 100 MB each. Files stay in browser IndexedDB and can be exported individually. Locking an asset protects its metadata from selective regeneration; the original imported file is never overwritten. Project JSON export contains **metadata only**, so export individual media files too before clearing site data or changing browsers. File import requires a browser origin with IndexedDB (use the local static server above). There is no paid provider, cloud upload or media generation in this milestone.

@@ -1,0 +1,4 @@
+const DB='aivm.v2.files';
+export function openStore(){return new Promise((resolve,reject)=>{const request=indexedDB.open(DB,1);request.onupgradeneeded=()=>request.result.createObjectStore('assets');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});}
+export async function putFile(id,file){const db=await openStore();try{return await new Promise((resolve,reject)=>{const tx=db.transaction('assets','readwrite');tx.objectStore('assets').put(file,id);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);});}finally{db.close();}}
+export async function getFile(id){const db=await openStore();try{return await new Promise((resolve,reject)=>{const tx=db.transaction('assets','readonly');const request=tx.objectStore('assets').get(id);request.onsuccess=()=>resolve(request.result||null);request.onerror=()=>reject(request.error);});}finally{db.close();}}
