@@ -133,3 +133,7 @@ Use **Export project metadata JSON** for a planning backup, then **Restore proje
 ## Hardware modes
 
 New projects default to **Light laptop** (360×640 preview at 24 fps), suited to the current low-power machine. **Balanced** uses 576×1024 at 24 fps; **Stronger laptop** uses 720×1280 at 30 fps. Changing modes saves with the project and affects future generated previews and clips; existing approved media is reused. The assembled final remains 1080×1920 when FFmpeg passes its export check. Upscaling a small source does not create missing visual detail. No 4K label or paid provider is enabled.
+
+## Character and world references
+
+The project can store a character description, world description and visual rules. These are appended to future scene generation prompts and kept in project revisions. Editing them does not overwrite prior stills or locked assets. The built-in illustration fallback is deterministic but cannot guarantee character identity; a capable free local model would need to use these instructions and eventually image references for actual visual consistency.
