@@ -153,3 +153,5 @@ If an allowed local image workflow fails, FREE ONLY falls back to its basic stil
 With Node.js 18+ and FFmpeg installed, run `node v2/start.mjs` from the repository root and open `http://127.0.0.1:8000/v2/`. This starts the V2 static page and the loopback bridge together. Generated files go under `AIVM-V2-Media` in the computer's home directory by default, outside the Git checkout. Stop with Ctrl+C. The launcher serves only ordinary static app extensions, blocks hidden files and path traversal, and does not contact a paid provider. The older two-command setup remains usable.
 
 The V2 launcher reserves bridge port `8787`, matching the browser app. If another process owns that port, stop that process before launching V2; the launcher does not silently redirect the app to another service. `AIVM_V2_WEB_PORT` can change only the static page port.
+
+If the page port is already occupied, startup exits cleanly and stops its bridge child. If the bridge exits, the page server also stops instead of presenting a studio with no local generation service.
