@@ -97,13 +97,13 @@ const server = http.createServer(async (req, res) => {
   }
   const exportMatch = req.method === 'GET' && /^\/v1\/exports\/([a-f0-9-]+)$/.exec(req.url || '');
   if (exportMatch) { const file = exportsByJob.get(exportMatch[1]); if (!file) return json(res, 404, { status: 'not_found', error: 'Export job not found or bridge was restarted.' }); return fs.stat(file, (error, stat) => { if (error) return json(res, 404, { status: 'not_found', error: 'Export file is no longer available.' }); res.writeHead(200, { 'content-type': 'video/mp4', 'content-length': stat.size, 'cache-control': 'no-store', 'access-control-allow-origin': '*', 'content-disposition': 'attachment; filename="ai-video-maker.mp4"' }); fs.createReadStream(file).pipe(res); }); }
-  const importMatch = req.method === 'POST' && /^\/v1\/import\/(audio|image)\?/.exec(req.url || '');
+  const importMatch = req.method === 'POST' && /^\/v1\/import\/(audio|image|video)\?/.exec(req.url || '');
   if (importMatch) {
     const kind = importMatch[1];
     if (!localOrigin(req)) return json(res, 403, { status:'forbidden', error:'Media import requires a local browser origin.' });
     const name = new URL(req.url, 'http://localhost').searchParams.get('name') || '';
     const ext = path.extname(name).toLowerCase();
-    const allowed = kind === 'audio' ? ['.wav','.mp3','.m4a','.ogg','.flac'] : ['.png','.jpg','.jpeg','.webp','.ppm'];
+    const allowed = kind === 'audio' ? ['.wav','.mp3','.m4a','.ogg','.flac'] : kind === 'image' ? ['.png','.jpg','.jpeg','.webp','.ppm'] : ['.mp4','.mov','.webm'];
     if (!allowed.includes(ext)) return json(res, 415, { status:'invalid', error:'Unsupported '+kind+' extension.' });
     let file;
     try {
@@ -115,6 +115,7 @@ const server = http.createServer(async (req, res) => {
       const info = await inspectMedia(file);
       if (kind === 'audio' && (!info.audio || info.video)) throw Object.assign(new Error('File must contain audio only.'),{status:422});
       if (kind === 'image' && (!info.video || info.audio || !info.video.width || !info.video.height || info.video.width*info.video.height>32_000_000)) throw Object.assign(new Error('File must be a supported still image under 32 megapixels.'),{status:422});
+      if (kind === 'video' && (!info.video || !info.video.width || !info.video.height || info.video.width*info.video.height>32_000_000 || !(info.duration>0) || info.duration>60)) throw Object.assign(new Error('File must be a video up to 60 seconds and 32 megapixels.'),{status:422});
       return json(res,200,{status:'completed',path:file,filename:path.basename(file),bytes:info.bytes,duration:info.duration,audio:info.audio,video:info.video});
     } catch(error){if(file)await fsp.rm(file,{force:true}).catch(()=>{});return json(res,error.status||422,{status:'failed',error:error.message||'Media import failed.'});}
   }

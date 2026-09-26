@@ -28,8 +28,10 @@ export async function assemble(clips, options = {}) {
   const jobDir = await fs.mkdtemp(path.join(os.tmpdir(), 'aivm-assemble-'));
   try {
     let [width, height] = presetSize(options); width = Math.max(144, Math.min(3840, Math.round(width))); height = Math.max(144, Math.min(3840, Math.round(height))); const fps = Math.max(1, Math.min(60, Number(options.fps || 30)));
+    const durations = options.clipDurations;
+    if (durations && (!Array.isArray(durations) || durations.length !== inputs.length || durations.some(d=>!Number.isFinite(Number(d))||Number(d)<1||Number(d)>60))) throw new Error('Clip durations must match the input clips (1–60 seconds).');
     const normalized = [];
-    for (let i = 0; i < inputs.length; i++) { const out = path.join(jobDir, `clip-${String(i).padStart(3, '0')}.mp4`); await run(FFMPEG, ['-y', '-i', inputs[i], '-vf', `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black,fps=${fps},format=yuv420p`, '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', out]); normalized.push(out); }
+    for (let i = 0; i < inputs.length; i++) { const out = path.join(jobDir, `clip-${String(i).padStart(3, '0')}.mp4`); await run(FFMPEG, ['-y', '-i', inputs[i], ...(durations?['-t',String(durations[i])]:[]), '-vf', `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black,fps=${fps},format=yuv420p`, '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', out]); normalized.push(out); }
     const listFile = path.join(jobDir, 'concat.txt'); await fs.writeFile(listFile, normalized.map(file => `file '${file.replaceAll("'", "'\\''")}'`).join('\n'));
     const silentVideo = path.join(jobDir, 'video.mp4'); await run(FFMPEG, ['-y', '-f', 'concat', '-safe', '0', '-i', listFile, '-c', 'copy', '-movflags', '+faststart', silentVideo]);
     const output = path.join(OUTPUT_ROOT, safeOutput(options.outputName || `aivm-${Date.now()}.mp4`)); let videoInput = silentVideo;

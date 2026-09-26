@@ -159,3 +159,7 @@ If the page port is already occupied, startup exits cleanly and stops its bridge
 ## Animate imported stills
 
 Scene imports of PNG, JPEG, WebP or PPM images (up to 20 MB and 32 megapixels) are validated by the local bridge and kept in both the browser asset store and the bridge media folder. Imported stills then expose **Animate this still** and can be selected by the resumable draft flow. Invalid or non-local uploads fail without adding a scene asset. Imported video/audio assets remain useful for preview/export; only bridge-backed stills feed the current motion fallback.
+
+## Imported video clips on the timeline
+
+MP4, MOV and WebM clips up to 20 MB, 60 seconds and 32 megapixels can be imported into a scene. They become usable in **Create draft video** and final assembly without regenerating that scene. A clip shorter than its scene duration is skipped so the draft can create a suitable replacement; a longer clip is trimmed to that scene's duration. Assembly still applies its final duration and stream quality checks. Source audio inside a video clip is removed during normalization; add it separately as a project voice or music track if needed.
