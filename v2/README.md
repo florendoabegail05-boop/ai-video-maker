@@ -155,3 +155,7 @@ With Node.js 18+ and FFmpeg installed, run `node v2/start.mjs` from the reposito
 The V2 launcher reserves bridge port `8787`, matching the browser app. If another process owns that port, stop that process before launching V2; the launcher does not silently redirect the app to another service. `AIVM_V2_WEB_PORT` can change only the static page port.
 
 If the page port is already occupied, startup exits cleanly and stops its bridge child. If the bridge exits, the page server also stops instead of presenting a studio with no local generation service.
+
+## Animate imported stills
+
+Scene imports of PNG, JPEG, WebP or PPM images (up to 20 MB and 32 megapixels) are validated by the local bridge and kept in both the browser asset store and the bridge media folder. Imported stills then expose **Animate this still** and can be selected by the resumable draft flow. Invalid or non-local uploads fail without adding a scene asset. Imported video/audio assets remain useful for preview/export; only bridge-backed stills feed the current motion fallback.
