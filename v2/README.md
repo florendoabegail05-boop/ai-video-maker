@@ -167,3 +167,7 @@ MP4, MOV and WebM clips up to 20 MB, 60 seconds and 32 megapixels can be importe
 ## Complete ZIP backup
 
 **Export complete ZIP** packages the project JSON with every locally stored media file, preserving asset IDs and locked status. **Restore complete ZIP** verifies every file checksum and refuses duplicate project IDs or incomplete archives. The package is uncompressed to keep CPU use low and is capped at 100 MB; larger projects should export files individually. On another computer, use **Reconnect for render** for each restored image/video/audio asset so the local bridge validates and stores it again. Reconnecting does not replace the original file bytes or unlock an asset.
+
+## Selective regeneration
+
+**Regenerate this asset** acts on one unlocked scene image or clip. New media is added as a new asset record; the original bytes remain available for preview/export. Generated clips record the image they came from. Marking an image for regeneration also invalidates only its unlocked dependent clips. Locked assets and other scenes are preserved. If the replacement fails, existing files remain and the marked asset can be retried or its metadata state undone.
