@@ -171,3 +171,7 @@ MP4, MOV and WebM clips up to 20 MB, 60 seconds and 32 megapixels can be importe
 ## Selective regeneration
 
 **Regenerate this asset** acts on one unlocked scene image or clip. New media is added as a new asset record; the original bytes remain available for preview/export. Generated clips record the image they came from. Marking an image for regeneration also invalidates only its unlocked dependent clips. Locked assets and other scenes are preserved. If the replacement fails, existing files remain and the marked asset can be retried or its metadata state undone.
+
+## Capability report
+
+**Check local bridge** now reads the bridge's live hardware/tool diagnostics and shows what FREE ONLY can actually do. It distinguishes a verified local image workflow from the basic still fallback, checks FFmpeg/FFprobe availability for motion/export, and explicitly marks photorealistic AI motion, lip-sync and 4K as unavailable until those routes are implemented and verified. The 1080p label describes the export route; each finished MP4 must still pass the bridge quality gate.
