@@ -163,3 +163,7 @@ Scene imports of PNG, JPEG, WebP or PPM images (up to 20 MB and 32 megapixels) a
 ## Imported video clips on the timeline
 
 MP4, MOV and WebM clips up to 20 MB, 60 seconds and 32 megapixels can be imported into a scene. They become usable in **Create draft video** and final assembly without regenerating that scene. A clip shorter than its scene duration is skipped so the draft can create a suitable replacement; a longer clip is trimmed to that scene's duration. Assembly still applies its final duration and stream quality checks. Source audio inside a video clip is removed during normalization; add it separately as a project voice or music track if needed.
+
+## Complete ZIP backup
+
+**Export complete ZIP** packages the project JSON with every locally stored media file, preserving asset IDs and locked status. **Restore complete ZIP** verifies every file checksum and refuses duplicate project IDs or incomplete archives. The package is uncompressed to keep CPU use low and is capped at 100 MB; larger projects should export files individually. On another computer, use **Reconnect for render** for each restored image/video/audio asset so the local bridge validates and stores it again. Reconnecting does not replace the original file bytes or unlock an asset.
