@@ -43,7 +43,22 @@ const GLOBAL_TARGETS=[
   'QUALITY HONESTY: requested quality is a target only; do not claim photorealism, native audio, lip-sync, 4K or AI motion unless the active provider actually supports and verifies it.'
 ];
 
+const SHOTS=['wide establishing shot','medium character shot','medium action shot','closer action shot','reaction / result shot','closing payoff shot'];
+const CAMERAS=['mostly locked camera with subtle natural drift','gentle push-in','controlled lateral follow','short motivated tracking move','subtle push-in or hold for expression','clean settling move designed for a loopable ending'];
+const AUDIO=['establish ambience and location tone','introduce a clear story cue','support the main action with restrained SFX','build action with coherent ambience and SFX','leave space for expression, dialogue or reaction','resolve with a clean final sound cue or musical button'];
+
 function clean(value,max=1200){return String(value||'').replace(/\s+/g,' ').trim().slice(0,max);}
+
+export function sceneDirection(index,count){
+  const slot=Math.min(5,Math.floor(index*6/Math.max(1,count)));
+  return {
+    shot:SHOTS[slot],
+    camera:CAMERAS[slot],
+    motion:'Keep subject and camera motion simple enough to remain temporally stable; prioritize one readable primary action.',
+    continuityGoal:index===0?'Establish identity, wardrobe, key props, environment layout and lighting anchors.':'Continue the prior scene state unless the story explicitly changes it.',
+    audioIntent:AUDIO[slot]
+  };
+}
 
 export function directorBrief(project,sceneId){
   const scenes=Array.isArray(project?.scenes)?project.scenes:[];
@@ -56,10 +71,16 @@ export function directorBrief(project,sceneId){
   const continuity=[];
   if(previous)continuity.push(`Previous beat: ${clean(previous.beat||previous.prompt,500)}`);
   if(next)continuity.push(`Next beat: ${clean(next.beat||next.prompt,500)}`);
+  const direction=scene.direction||sceneDirection(index,scenes.length);
   return [
     'AI DIRECTOR BRIEF',
     `Visual mode: ${style}`,
     ...STYLE_PROFILES[style],
+    `SHOT: ${direction.shot}`,
+    `CAMERA: ${direction.camera}`,
+    `PRIMARY MOTION: ${direction.motion}`,
+    `CONTINUITY GOAL: ${direction.continuityGoal}`,
+    `AUDIO INTENT: ${direction.audioIntent}`,
     ...GLOBAL_TARGETS,
     continuity.length?`STORY HANDOFF: ${continuity.join(' | ')}`:'STORY HANDOFF: opening scene; establish stable visual anchors for later scenes.',
     project.hardwareMode==='light'
