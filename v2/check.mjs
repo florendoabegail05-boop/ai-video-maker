@@ -25,6 +25,14 @@ export async function checkLocalSetup(env = process.env) {
     // A read-only CLI check does not execute or certify a model workflow.
     freeOnlyImageWorkflow: false
   };
+  if (report.tools.ffmpeg.available) {
+    try {
+      const {stdout} = await exec(report.tools.ffmpeg.command, ['-hide_banner', '-encoders'], {timeout: 5000, windowsHide: true, maxBuffer: 4 * 1024 * 1024, env});
+      report.tools.ffmpeg.libx264 = /^\s*V\S*\s+libx264\s/m.test(stdout);
+    } catch {
+      report.tools.ffmpeg.libx264 = false;
+    }
+  }
   return {...report, ...draftReadiness(report)};
 }
 

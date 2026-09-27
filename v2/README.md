@@ -182,6 +182,8 @@ Run `node v2/check.mjs` before your first draft, or add `--json` for a machine-r
 
 FFmpeg and FFprobe must both be available. If they are already installed outside PATH, set `AIVM_FFMPEG` and `AIVM_FFPROBE` to their executable paths before starting V2. For example, in PowerShell (replace these paths with your actual installation):
 
+The command-line check also checks for FFmpeg's `libx264` video encoder, which the local MP4 draft uses. A version number alone does not confirm that an FFmpeg build can render a draft.
+
 ```powershell
 $env:AIVM_FFMPEG = 'C:\Tools\ffmpeg\bin\ffmpeg.exe'
 $env:AIVM_FFPROBE = 'C:\Tools\ffmpeg\bin\ffprobe.exe'

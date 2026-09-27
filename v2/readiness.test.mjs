@@ -25,6 +25,11 @@ test('missing capabilities fail closed', () => {
   assert.equal(draftReadiness({}).ready,false);
   assert.equal(draftReadiness({}).issues.length,4);
 });
+test('available FFmpeg without the MP4 encoder blocks draft rendering', () => {
+  const report=ready();report.tools.ffmpeg.libx264=false;
+  assert.match(draftReadiness(report).issues.join(' '),/libx264/);
+  assert.equal(draftReadiness(report).ready,false);
+});
 test('CLI checks explicit executable paths without launching providers or writing media', async () => {
   const env={...process.env,AIVM_FFMPEG:fileURLToPath(new URL('./missing tool/ffmpeg.exe',import.meta.url)),AIVM_FFPROBE:fileURLToPath(new URL('./missing tool/ffprobe.exe',import.meta.url)),AIVM_IMAGE_RUNNER:'https://must-not-be-called.invalid'};
   const result=await checkLocalSetup(env);
