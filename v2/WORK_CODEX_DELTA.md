@@ -55,7 +55,15 @@ These changes were made from ChatGPT chat after the last known local Work/Codex 
    - Generated voice/music/SFX/lip-sync remain unavailable unless the capability report explicitly verifies a FREE ONLY route.
    - Manual local audio import remains the dependable fallback.
 
-9. **Integration tests added**
+9. **Scene audio live UI + QC final-assembly gate**
+   - `audio-qc-ui.mjs` exposes per-scene dialogue, voice-label, ambience, SFX and music-cue editing in the browser without generating or uploading audio.
+   - The UI can query live bridge capability metadata and clearly labels each generated-audio route as available or not verified.
+   - Manual local audio import remains separate and intact.
+   - Final MP4 assembly is disabled when deterministic technical QC contains errors, and re-enabled when the current saved project passes the technical gate.
+   - QC gating never replaces, unlocks or deletes media; it only blocks the button and explains why.
+   - `index.html` now loads this module and shows Scene Audio Planner, generated-audio route status and QC-gate status.
+
+10. **Integration tests already added for core modules**
    - `continuity.test.mjs`
    - `media-adapters.test.mjs`
    - `technical-qc.test.mjs`
@@ -74,12 +82,16 @@ node --test v2/director.test.mjs v2/provider-router.test.mjs v2/capabilities.tes
 Then run the full V2/bridge/render/smoke suite from Priority 0 in the main handoff.
 
 Browser checks now also required:
-- load `v2/index.html` through the supported local launcher and confirm both ES modules load without console errors;
+- load `v2/index.html` through the supported local launcher and confirm all three browser modules load without console errors: `studio.mjs`, `studio-enhancements.mjs`, `audio-qc-ui.mjs`;
 - select/create a project, import or generate an image, mark it as Character Reference, confirm it becomes locked and is still previewable/exportable;
 - change it to World Reference and then clear the reference, confirming original file bytes remain untouched;
 - run Technical QC before clips exist and confirm warnings/errors are visible without changing assets;
+- confirm **Assemble final MP4** is disabled while technical QC errors exist, then becomes enabled after valid clips/files satisfy the technical gate;
+- enter dialogue/voice/ambience/SFX/music values for one scene, save, reselect/reload the project and confirm the plan persists;
+- with dialogue present and no voice label, confirm the planner warns that voice assignment is missing while manual audio import remains available;
+- click **Check FREE ONLY audio routes** with the local bridge running and confirm unverified voice/music/SFX/lip-sync routes are not presented as available;
 - create enough valid clips to satisfy the current vertical route and confirm preflight updates correctly;
-- verify the enhancement module reselects the current project after reference changes and does not accidentally switch projects with duplicate names. If duplicate-name handling is ambiguous, fix it before calling the UI verified.
+- verify the enhancement modules reselect the current project after metadata changes and do not accidentally switch projects with duplicate names. If duplicate-name handling is ambiguous, fix it before calling the UI verified.
 
 Pay special attention to:
 - capability response shapes from the actual local bridge;
@@ -89,17 +101,16 @@ Pay special attention to:
 - no regression in the verified 1080p FFmpeg route;
 - no generation call when the FREE ONLY router reports `unavailable`;
 - technical QC behavior against real imported/rendered metadata;
-- `studio-enhancements.mjs` project selection/reselection behavior;
+- `studio-enhancements.mjs` and `audio-qc-ui.mjs` project selection/reselection behavior;
 - no 16:9, 1:1 or 4K UI exposure until the corresponding render paths are actually tested.
 
 ## Next implementation targets after verification
 
 - Extend the allowlisted local ComfyUI bridge capability response with explicit `supportsCharacterReferences` / `supportsWorldReferences` metadata before passing any reference file path to a workflow.
 - Feed actual approved reference paths to only a verified compatible local workflow.
-- Integrate `scene-audio.mjs` controls into scene cards for dialogue / voice / ambience / SFX / music cue editing.
 - Add adapter discovery for truly free/local motion, voice, SFX/music and lip-sync only after hardware checks.
 - Integrate `export-presets.mjs` into UI only after 16:9 and 1:1 bridge assembly routes pass real render tests.
-- Add final-export QC gating so deterministic errors must be acknowledged or fixed before final assembly, without auto-replacing locked assets.
+- Strengthen final-export QC gating with bridge-returned media metadata after real local verification.
 - Add stronger project selection IDs/data attributes in the live UI so duplicate project names cannot confuse enhancement controls.
 
 ## Safety reminder
