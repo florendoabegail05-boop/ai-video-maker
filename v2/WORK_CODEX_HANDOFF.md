@@ -1,0 +1,165 @@
+# AI Video Maker V2 — Work / Codex Handoff
+
+Branch: `v2-clean-studio`
+Main/V1: **do not modify** unless explicitly approved by the owner.
+Cost policy: **ZERO-DOLLAR FIRST / FREE ONLY by default. Never enable or call a paid provider without explicit owner approval.**
+Safety policy: non-destructive; preserve existing assets, project backups and working routes.
+
+This file is the execution queue for tasks that need a local checkout, command runner, browser control, hardware inspection or longer coding session. ChatGPT chat may continue architecture/code/documentation work in GitHub; Work/Codex should pick up the highest unchecked task below when available.
+
+## Already present on V2
+
+- Local standalone V2 studio and project persistence
+- Scene planning, timeline reorder/edit/undo
+- Character/world/visual-rule text locks
+- Individual asset import, preview, keep/lock/reference/export/regenerate workflow
+- Selective regeneration that preserves locked assets
+- Complete ZIP backup/restore and metadata recovery
+- Local bridge, hardware modes and capability report
+- Verified local ComfyUI image route guard plus basic still fallback
+- FFmpeg camera-motion fallback and 1080x1920 final assembly route
+- Imported image/video/audio support
+- Voice/music import and caption burning
+- Publishing metadata and SRT export
+- AI Director quality brief for photorealistic, cinematic, 3D, storybook, fantasy, sci-fi, surreal and custom modes
+- FREE ONLY capability-aware provider router module
+
+## Priority 0 — verify latest GitHub state locally
+
+- [ ] Fetch/pull `v2-clean-studio` and confirm local HEAD matches remote.
+- [ ] Run `node --test v2/*.test.mjs`.
+- [ ] If FFmpeg/FFprobe are available, run the real render/end-to-end tests too.
+- [ ] Run existing bridge and smoke tests.
+- [ ] Fix any failures without weakening tests or deleting working behavior.
+- [ ] Commit fixes to `v2-clean-studio` only.
+- [ ] Record exact pass/fail counts and environment notes in this file under **Latest local verification**.
+
+Acceptance: no known regression in V2 core, backup, selective regeneration, publishing or existing real MP4 route.
+
+## Priority 1 — integrate the new Director + provider router into the live UI
+
+- [ ] Wire `director.mjs` into scene generation so every generated scene uses the structured Director brief plus character/world locks.
+- [ ] Wire `provider-router.mjs` into the capability report and generation decisions.
+- [ ] Show the selected FREE ONLY route in the UI before generation (for example `Verified local ComfyUI`, `Basic draft still`, `FFmpeg draft motion`, `Unavailable`).
+- [ ] Show quality claims separately from quality targets. Never show photorealistic motion, native audio, lip-sync or 4K as available unless the capability report verifies them.
+- [ ] Preserve all current Keep/Lock/Export/Reference/Regenerate behavior.
+
+Acceptance: user can see what will actually run and what quality is only a target before pressing Generate/Create Draft.
+
+## Priority 2 — stronger character consistency and reference-image plumbing
+
+- [ ] Add one or more user-selected reference images to a Character Library record.
+- [ ] Add World/Location reference images separately.
+- [ ] Ensure reference files remain individually exportable and lockable.
+- [ ] Extend the local ComfyUI adapter to pass reference images only when the configured allowlisted workflow explicitly supports them.
+- [ ] Do not send references to arbitrary/custom remote nodes in FREE ONLY mode.
+- [ ] Add identity/wardrobe/age continuity metadata per scene.
+- [ ] Add a continuity-state summary passed from Scene N to Scene N+1.
+
+Acceptance: reference-capable local workflows can receive approved references; unsupported workflows clearly fall back to text locks without pretending identity consistency is guaranteed.
+
+## Priority 3 — real FREE ONLY image quality route
+
+- [ ] On the actual laptop, detect whether a safe local ComfyUI setup/model is already usable.
+- [ ] Do **not** auto-download multi-GB models without owner approval.
+- [ ] If current laptop cannot reasonably run a photorealistic model, keep the light fallback and record the blocker rather than forcing it.
+- [ ] Add model/workflow capability metadata: resolution, reference support, expected VRAM/RAM, photorealistic/stylized suitability.
+- [ ] Add draft vs final image generation controls.
+
+Acceptance: app chooses only a route the laptop can actually support and never labels the illustration fallback as photorealistic.
+
+## Priority 4 — FREE ONLY motion architecture
+
+- [ ] Keep FFmpeg camera motion as safe fallback.
+- [ ] Add a provider-adapter interface for future image-to-video/text-to-video engines.
+- [ ] Detect local video model availability and hardware requirements before enabling it.
+- [ ] Add temporal quality metadata: flicker risk, identity drift risk, supported duration/FPS/resolution.
+- [ ] Add scene motion instruction generated by AI Director (subject motion + camera motion + constraints).
+- [ ] Preserve source still and prior clip when regenerating motion.
+
+Acceptance: generation can swap engines without changing project/timeline code; unsupported real AI motion stays visibly unavailable.
+
+## Priority 5 — voice, SFX, music and lip-sync adapters
+
+- [ ] Define separate adapters for voice/TTS, ambience, SFX, music and lip-sync.
+- [ ] Keep manual audio import fully working.
+- [ ] Detect any truly free/local voice route available on the laptop; never silently install or download large models.
+- [ ] Add per-character voice assignment and scene dialogue fields.
+- [ ] Add audio timing plan from Director.
+- [ ] Lip-sync button must remain disabled until a verified route exists.
+
+Acceptance: native/generated audio capabilities are modular and honest; manual import remains the dependable zero-cost fallback.
+
+## Priority 6 — editor usability
+
+- [ ] Improve timeline UI so each scene visibly shows selected still, selected clip, caption and audio cues.
+- [ ] Add trim/start/end controls for imported clips without overwriting originals.
+- [ ] Add volume controls for voice/music and simple fades.
+- [ ] Add duplicate scene and split scene while preserving assets safely.
+- [ ] Add project-level aspect ratio presets 9:16, 16:9 and 1:1 without lying about source resolution.
+
+Acceptance: a beginner can replace only one bad asset/scene without rebuilding the project.
+
+## Priority 7 — QC engine
+
+- [ ] Add deterministic technical QC: missing media, duration mismatch, resolution, aspect ratio, audio stream, caption overflow, broken asset links.
+- [ ] Add capability-aware visual QC hooks for future models (identity drift, flicker, anatomy/object errors) but do not claim they ran unless a model actually evaluated the output.
+- [ ] Final export must present warnings and pass/fail checks.
+- [ ] Locked/approved assets are never automatically replaced by QC.
+
+Acceptance: technical QC is real and testable; AI visual QC is explicitly marked unavailable until connected.
+
+## Priority 8 — export and future 4K
+
+- [ ] Preserve verified 1080x1920 export.
+- [ ] Add 16:9 and 1:1 export presets when tested.
+- [ ] Add an upscale-provider interface.
+- [ ] Enable 4K only if the active route supports it and a real output validation passes.
+- [ ] Label simple scaling separately from detail-enhancing upscale.
+
+Acceptance: no output is called 4K-quality merely because dimensions were scaled to 4K.
+
+## Priority 9 — packaging / easy owner mode
+
+- [ ] Provide a one-command Windows start path with a clear error if Node/FFmpeg is missing.
+- [ ] Create a safe desktop-launch option only after local verification.
+- [ ] Do not require admin rights if avoidable.
+- [ ] Never modify unrelated system folders/settings.
+- [ ] Document where project media/backups are stored.
+
+Acceptance: owner can launch V2 without development knowledge and can recover projects if the app closes.
+
+## Priority 10 — browser end-to-end owner test
+
+Using the actual Windows laptop:
+
+- [ ] Start V2 using the supported launcher.
+- [ ] Create a 15-second test project.
+- [ ] Save character/world references.
+- [ ] Generate/import a still.
+- [ ] Keep + Lock + Export that still (confirm image-only workflow works).
+- [ ] Animate/import clips for all scenes.
+- [ ] Add optional audio and a caption.
+- [ ] Regenerate one unlocked scene and confirm other locked assets remain untouched.
+- [ ] Assemble and download final MP4.
+- [ ] Export publishing JSON, captions and complete ZIP backup.
+- [ ] Restore the backup into a clean browser profile/project namespace and verify recovery behavior.
+
+Acceptance: this complete owner flow works without paid calls and without destructive file changes.
+
+## Do not do without asking the owner
+
+- Purchase credits/subscriptions or enable paid APIs.
+- Download very large AI models or packages that consume substantial disk/bandwidth.
+- Install system-wide drivers, GPU runtimes or software requiring admin permission.
+- Delete/overwrite V1, main branch, original media or owner files.
+- Force-push history, disable security checks, or weaken validation just to make tests pass.
+- Upload private media to third-party AI services.
+
+## Exact resume instruction for Work/Codex
+
+> Continue AI Video Maker V2 from `florendoabegail05-boop/ai-video-maker`, branch `v2-clean-studio`. Read `v2/WORK_CODEX_HANDOFF.md` first. Inspect the repository and local checkout before changing anything. Pick the highest unchecked priority that can be completed with the available local tools. Preserve V1/main and all approved/locked assets. ZERO-DOLLAR FIRST is a hard rule; never call or enable paid providers without explicit owner approval. Run relevant tests after each milestone, fix real regressions, commit verified changes to `v2-clean-studio`, then update the handoff document with what was completed, exact test results and any blocker. Do not ask routine implementation questions; ask only for genuine owner permission, login, paid-service approval, large downloads/installations, or destructive/risky actions.
+
+## Latest local verification
+
+Last known local verification before the newest chat-side Director/router commits: the previous Work/Codex session reported 31 V2/bridge tests plus six smoke suites passing with local FFmpeg, including real MP4/audio/caption rendering. **The newest Director/provider-router commits still need a fresh local test run.**
