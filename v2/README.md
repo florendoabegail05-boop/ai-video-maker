@@ -175,3 +175,20 @@ MP4, MOV and WebM clips up to 20 MB, 60 seconds and 32 megapixels can be importe
 ## Capability report
 
 **Check local bridge** now reads the bridge's live hardware/tool diagnostics and shows what FREE ONLY can actually do. It distinguishes a verified local image workflow from the basic still fallback, checks FFmpeg/FFprobe availability for motion/export, and explicitly marks photorealistic AI motion, lip-sync and 4K as unavailable until those routes are implemented and verified. The 1080p label describes the export route; each finished MP4 must still pass the bridge quality gate.
+
+## Local setup readiness (Windows milestone)
+
+Run `node v2/check.mjs` before your first draft, or add `--json` for a machine-readable report. Exit code 0 means the basic fallback prerequisites were found; 1 means setup is needed. The check runs only local tool version commands. It does not install software, generate media, contact providers, or certify models/codecs/output quality.
+
+FFmpeg and FFprobe must both be available. If they are already installed outside PATH, set `AIVM_FFMPEG` and `AIVM_FFPROBE` to their executable paths before starting V2. For example, in PowerShell (replace these paths with your actual installation):
+
+```powershell
+$env:AIVM_FFMPEG = 'C:\Tools\ffmpeg\bin\ffmpeg.exe'
+$env:AIVM_FFPROBE = 'C:\Tools\ffmpeg\bin\ffprobe.exe'
+node v2/check.mjs
+node v2/start.mjs
+```
+
+**Check local bridge** displays actionable setup guidance. **Create draft video** checks the live prerequisites before generating any scene assets, so missing tools, mock mode, or disabled free routes stop early. Planning and available still previews remain usable. The CLI checks the basic fallback; only the live bridge can verify a configured local image workflow. No paid route is enabled.
+
+V2 render tests now resolve Windows filesystem paths correctly, honor `AIVM_FFMPEG`, and wait for the bridge process to exit before removing temporary files. Run `node --test v2/*.test.mjs` with both media tools installed for full render verification. Without them, run the non-render tests separately; an MP4 result has not been verified until the render tests pass.

@@ -5,11 +5,26 @@ const vm = require("node:vm");
 
 const configSource = fs.readFileSync("app-config.js", "utf8");
 const providerSource = fs.readFileSync("provider-registry.js", "utf8");
-const context = { window: {}, crypto: { randomUUID: () => "test-job-id" } };
+const loadedElements = [];
+const document = {
+  querySelector(selector) {
+    const match = /^(script|link)\[data-aivm="([^"]+)"\]$/.exec(selector);
+    assert.ok(match, `Unexpected selector: ${selector}`);
+    return loadedElements.find(element => element.tagName === match[1] && element.dataset.aivm === match[2]) || null;
+  },
+  createElement(tagName) { return { tagName, dataset: {} }; },
+  head: { appendChild(element) { loadedElements.push(element); } }
+};
+const context = { window: {}, document, crypto: { randomUUID: () => "test-job-id" } };
 vm.runInNewContext(configSource, context);
 vm.runInNewContext(providerSource, context);
 
-assert.equal(context.window.AIVM_CONFIG.schemaVersion, 1);
+assert.deepEqual(loadedElements.map(element => element.src || element.href), [
+  "monetization-engine.js", "youtube-upload-engine.js", "youtube-upload.css"
+]);
+vm.runInNewContext(configSource, context);
+assert.equal(loadedElements.length, 3, "Config reload must not duplicate scripts or styles");
+assert.equal(context.window.AIVM_CONFIG.schemaVersion, 3);
 assert.equal(context.window.AIVM_CONFIG.security.allowFrontendSecrets, false);
 assert.equal(context.window.AIVM_CONFIG.security.allowRuntimeNetwork, false);
 assert.equal(context.window.AIVM_PROVIDERS.kinds.includes("video"), true);
