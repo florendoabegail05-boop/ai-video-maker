@@ -194,3 +194,13 @@ node v2/start.mjs
 **Check local bridge** displays actionable setup guidance. **Create draft video** checks the live prerequisites before generating any scene assets, so missing tools, mock mode, or disabled free routes stop early. Planning and available still previews remain usable. The CLI checks the basic fallback; only the live bridge can verify a configured local image workflow. No paid route is enabled.
 
 V2 render tests now resolve Windows filesystem paths correctly, honor `AIVM_FFMPEG`, and wait for the bridge process to exit before removing temporary files. Run `node --test v2/*.test.mjs` with both media tools installed for full render verification. Without them, run the non-render tests separately; an MP4 result has not been verified until the render tests pass.
+
+## Local publishing preparation
+
+Use **Publishing preparation** to save a video title (up to 100 characters) and description/credits (up to 5,000 characters). These details autosave with the project when you select **Save publishing details**, travel with JSON/complete ZIP backups, and participate in **Undo last change**. Editing these fields or exporting a package does not regenerate, replace or unlock any asset.
+
+**Export publishing package JSON** creates portable metadata containing saved publishing details, scene timing, selected clip/audio IDs, an asset manifest, manual captions in SRT format and a review checklist. It warns about scenes without eligible local clips. Local file paths, bridge download links, project history, scene prompts and reference instructions are omitted. Save pending title/description edits before exporting.
+
+**Export captions SRT** downloads the saved scene captions separately. Timing follows the current timeline, including scenes without captions and scene reordering. These are user-entered captions, not automatically transcribed speech. Avoid applying a second subtitle layer if the final MP4 already has burned-in captions.
+
+This is a FREE ONLY, offline preparation step: it performs no uploads or provider calls. The package contains **metadata only**, not the final MP4 or media bytes; use the existing MP4 download and complete ZIP backup separately. It does not verify local media availability, final render quality, rights or platform compliance. Review the downloaded video and any required credits before uploading manually. Test with `node --test v2/publishing.test.mjs`.

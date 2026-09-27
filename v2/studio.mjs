@@ -5,12 +5,58 @@ import {decodePPM} from './ppm.mjs';
 import {makeBundle,readBundle} from './bundle.mjs';
 import {capabilityRows} from './capabilities.mjs';
 import {draftReadiness} from './readiness.mjs';
+import {publishingDetails,setPublishingDetails,makePublishingPackage,captionSrt} from './publishing.mjs';
 const el=id=>document.getElementById(id);let current=null;
 function notice(message){el('notice').textContent=message;}
 function persist(next){try{saveProject(localStorage,next);current=next;render();notice('Saved locally · revision '+next.revision);}catch(e){notice('Could not save: '+e.message);}}
 function button(label,fn,secondary=false){const b=document.createElement('button');b.type='button';b.textContent=label;if(secondary)b.className='secondary';b.addEventListener('click',fn);return b;}
 function fillBible(project){el('character').value=project.bible?.character||'';el('world').value=project.bible?.world||'';el('visualRules').value=project.bible?.visualRules||'';}
 function download(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}
+let publishingSource = null;
+function renderPublishing(project) {
+  const details = project ? publishingDetails(project) : {title: '', description: ''};
+  const source = JSON.stringify([project?.id, details]);
+  if (source !== publishingSource) {
+    el('publishTitle').value = details.title;
+    el('publishDescription').value = details.description;
+    publishingSource = source;
+  }
+  el('publishTitle').disabled = el('publishDescription').disabled = !project;
+  el('savePublishing').disabled = !project;
+  updatePublishingControls();
+}
+function updatePublishingControls() {
+  const details = current ? publishingDetails(current) : {title: '', description: ''};
+  const dirty = el('publishTitle').value !== details.title || el('publishDescription').value !== details.description;
+  el('exportPublishing').disabled = !current?.scenes.length || dirty;
+  el('exportCaptions').disabled = !current?.scenes.some(scene => scene.caption?.trim());
+  el('publishingStatus').textContent = !current ? 'Create or select a project first.' : dirty ? 'Unsaved publishing details. Save before exporting the package.' : 'Saved details. Package metadata does not verify a final MP4; download and review it separately.';
+}
+el('publishTitle').addEventListener('input', updatePublishingControls);
+el('publishDescription').addEventListener('input', updatePublishingControls);
+el('savePublishing').addEventListener('click', () => {
+  try {
+    if (!current) throw Error('Create a project first.');
+    const next = setPublishingDetails(current, {title: el('publishTitle').value, description: el('publishDescription').value});
+    publishingSource = null;
+    persist(next);
+  } catch (error) { notice(error.message); }
+});
+el('exportPublishing').addEventListener('click', () => {
+  try {
+    const pack = makePublishingPackage(current);
+    download(new Blob([JSON.stringify(pack, null, 2)], {type: 'application/json'}), 'aivm-v2-publishing.json');
+    notice('Publishing metadata exported. Download and review the final MP4 separately; nothing was uploaded.');
+  } catch (error) { notice('Publishing export failed: '+error.message); }
+});
+el('exportCaptions').addEventListener('click', () => {
+  try {
+    const text = captionSrt(current);
+    if (!text) throw Error('Save at least one scene caption first.');
+    download(new Blob([text], {type: 'application/x-subrip;charset=utf-8'}), 'aivm-v2-captions.srt');
+    notice('Scene captions exported in timeline order. These are manual captions, not a speech transcript.');
+  } catch (error) { notice('Caption export failed: '+error.message); }
+});
 async function generateScene(sceneId){const base=current;const scene=base.scenes.find(s=>s.id===sceneId);if(!scene)return;notice('Generating local preview for scene '+scene.order+'…');try{const result=await generateImage(compileScenePrompt(base,sceneId),base.hardwareMode);if(current?.id!==base.id||current.revision!==base.revision)throw Error('Project changed while generating. Retry this scene.');const next=addAsset(base,sceneId,{name:result.name,kind:'image',hasFile:true,size:result.blob.size,duration:scene.duration,sourcePath:result.sourcePath,provider:result.provider});await putFile(next.assets.at(-1).id,result.blob);persist(next);notice('Local preview saved ('+result.provider+'). '+(result.note||''));return next.assets.at(-1);}catch(e){notice('Generation stopped: '+e.message);return null;}}
 async function animateAsset(asset){const base=current;if(asset.locked&&asset.kind==='video'){notice('Locked video preserved.');return;}notice('Animating '+asset.name+' locally…');try{const scene=base.scenes.find(s=>s.id===asset.sceneId);const result=await animateImage(asset.sourcePath,scene.duration,base.hardwareMode);if(current?.id!==base.id||current.revision!==base.revision)throw Error('Project changed while animating. Retry.');const next=addAsset(base,scene.id,{name:result.name,kind:'video',hasFile:true,size:result.blob.size,duration:scene.duration,sourcePath:result.sourcePath,provider:result.provider,parentAssetId:asset.id});await putFile(next.assets.at(-1).id,result.blob);persist(next);notice('Motion clip saved ('+result.provider+'). '+(result.note||''));return next.assets.at(-1);}catch(e){notice('Animation stopped: '+e.message);return null;}}
 async function regenerateAssetNow(assetId){try{const asset=current.assets.find(a=>a.id===assetId);if(!asset)throw Error('Asset missing.');if(!['image','video'].includes(asset.kind))throw Error('This asset type cannot be generated yet.');const base=current;const sceneId=asset.sceneId;const parent=asset.kind==='video'?(base.assets.find(a=>a.id===asset.parentAssetId&&a.sourcePath&&a.status!=='needs regeneration')||reusableAsset(base,sceneId,'image')):null;if(asset.kind==='video'&&!parent)throw Error('No usable still for this clip. Generate or import a still first.');persist(updateAsset(base,assetId,'regenerate'));const replacement=asset.kind==='image'?await generateScene(sceneId):await animateAsset(parent);if(replacement)notice('Replacement ready: '+replacement.name+'. Earlier file preserved.');}catch(e){notice('Selective regeneration stopped: '+e.message);}}
@@ -23,7 +69,7 @@ async function reconnectAsset(asset){const base=current;try{const file=await get
 function renderAssetBoard(project){const host=el('assetBoard');host.replaceChildren();if(!project)return;const filter=el('assetFilter').value;const assets=project.assets.filter(a=>filter==='all'||(filter==='locked'?a.locked:a.kind===filter));if(!assets.length){host.textContent='No assets in this view yet.';return;}for(const asset of assets){const row=document.createElement('div');row.className='asset-item';const scene=project.scenes.find(s=>s.id===asset.sceneId);const title=document.createElement('div');title.textContent=`${String(asset.kind||'file').toUpperCase()} · ${asset.name} · ${scene?'Scene '+scene.order:asset.role||'Project'} · ${asset.status}${asset.locked?' · LOCKED':''}${asset.parentAssetId?' · derived clip':''}`;row.append(title);const actions=document.createElement('div');actions.className='actions';if(asset.hasFile)actions.append(button('Preview',()=>previewAsset(asset),true),button('Export',async()=>{const file=await getFile(asset.id);if(file)download(file,asset.name);else notice('Asset file is missing in this browser.');},true));if(asset.hasFile&&!asset.sourcePath&&['image','video','audio'].includes(asset.kind))actions.append(button('Reconnect for render',()=>reconnectAsset(asset),true));if(scene)actions.append(button('Go to scene',()=>el('scene-'+scene.id)?.scrollIntoView({behavior:'smooth'}),true));row.append(actions);host.append(row);}}
 function render(){const list=el('projects');list.replaceChildren();for(const p of loadProjects(localStorage).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))){list.append(button(p.name,()=>{current=p;el('finalVideo').replaceChildren();el('preview').replaceChildren();el('name').value=p.name;el('prompt').value=p.prompt;el('style').value=p.style;el('hardware').value=p.hardwareMode||'light';fillBible(p);render();},true));}
  el('export').disabled=!current;el('bundle').disabled=!current;el('undo').disabled=!current?.history?.length;const box=el('scenes');box.replaceChildren();el('summary').textContent=current?`${current.scenes.length} scenes · ${current.assets.length} asset records · revision ${current.revision} · FREE ONLY`:'';
- renderAssetBoard(current);if(!current){el('audioAssets').replaceChildren();return;}
+ renderPublishing(current);renderAssetBoard(current);if(!current){el('audioAssets').replaceChildren();return;}
  const audioHost=el('audioAssets');audioHost.replaceChildren();for(const role of ['music','voice']){const item=selectedProjectAudio(current,role);if(!item)continue;const row=document.createElement('div');row.className='actions';const text=document.createElement('span');text.textContent=role+': '+item.name;row.append(text,button('Preview',()=>previewAsset(item),true),button('Export file',async()=>{const file=await getFile(item.id);if(file)download(file,item.name);},true));audioHost.append(row);}
  for(const scene of current.scenes){const card=document.createElement('section');card.className='scene';card.id='scene-'+scene.id;const title=document.createElement('h3');title.textContent=`Scene ${scene.order} · ${scene.duration}s · ${scene.beat}`;card.append(title);const status=document.createElement('small');status.textContent=scene.status;card.append(status);const prompt=document.createElement('textarea');prompt.value=scene.prompt;prompt.rows=4;prompt.setAttribute('aria-label','Scene '+scene.order+' prompt');card.append(prompt);const caption=document.createElement('input');caption.value=scene.caption||'';caption.maxLength=160;caption.placeholder='Optional on-screen caption';caption.setAttribute('aria-label','Scene '+scene.order+' caption');card.append(caption);const controls=document.createElement('div');controls.className='actions';controls.append(button('Save caption',()=>{try{persist(setSceneCaption(current,scene.id,caption.value));}catch(e){notice(e.message);}},true),button('Save scene prompt',()=>{try{persist(editScene(current,scene.id,prompt.value));}catch(e){notice(e.message);}},true),button('Move earlier',()=>{try{persist(moveScene(current,scene.id,-1));}catch(e){notice(e.message);}},true),button('Move later',()=>{try{persist(moveScene(current,scene.id,1));}catch(e){notice(e.message);}},true),button('Generate local preview',()=>generateScene(scene.id)),button('Revise this scene',()=>persist(regenerateScene(current,scene.id)),true),button('Import local file',()=>{const input=document.createElement('input');input.type='file';input.accept='image/*,.ppm,video/*,audio/*';input.onchange=()=>attachFile(scene.id,input.files[0]);input.click();},true));card.append(controls);
  for(const asset of current.assets.filter(a=>a.sceneId===scene.id)){const row=document.createElement('div');row.className='scene';const label=document.createElement('p');label.textContent=`${asset.name} · ${asset.status}${asset.locked?' · LOCKED':''}${asset.reference?' · reference':''}`;row.append(label);const actions=document.createElement('div');actions.className='actions';for(const [text,action] of [['Keep','keep'],[asset.locked?'Unlock':'Lock',asset.locked?'unlock':'lock'],['Use as reference','reference'],['Animate later','later'],['Mark for regeneration','regenerate']])actions.append(button(text,()=>{try{persist(updateAsset(current,asset.id,action));}catch(e){notice(e.message);}},true));if(['image','video'].includes(asset.kind)&&!asset.locked)actions.append(button('Regenerate this asset',()=>regenerateAssetNow(asset.id),true));if(asset.kind==='image'&&asset.sourcePath)actions.append(button('Animate this still',()=>animateAsset(asset),true));if(asset.hasFile)actions.append(button('Preview',()=>previewAsset(asset),true));if(asset.hasFile)actions.append(button('Export file',async()=>{try{const file=await getFile(asset.id);if(!file)throw Error('File missing from this browser.');download(file,asset.name);}catch(e){notice(e.message);}},true));row.append(actions);card.append(row);}box.append(card);}

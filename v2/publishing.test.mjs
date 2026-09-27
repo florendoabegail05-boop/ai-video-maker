@@ -1,0 +1,62 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createProject, planScenes, addAsset, updateAsset, moveScene, setSceneCaption, undoProject, addProjectAudio} from './core.mjs';
+import {setPublishingDetails, publishingDetails, captionSrt, makePublishingPackage} from './publishing.mjs';
+
+test('publishing details persist in revisions and undo without changing approved assets', () => {
+  let project = planScenes(createProject('A quiet garden', 'Garden'), 10);
+  project = addAsset(project, project.scenes[0].id, {kind: 'image', name: 'approved.png', hasFile: true});
+  project = updateAsset(project, project.assets[0].id, 'lock');
+  const before = structuredClone(project);
+  project = setPublishingDetails(project, {title: ' Garden walk ', description: 'Line one\r\nLine two'});
+  assert.deepEqual(publishingDetails(project), {title: 'Garden walk', description: 'Line one\nLine two'});
+  assert.deepEqual(project.assets, before.assets);
+  assert.deepEqual(project.scenes, before.scenes);
+  const next = setPublishingDetails(project, {title: 'New title', description: ''});
+  assert.deepEqual(publishingDetails(undoProject(next)), publishingDetails(project));
+  assert.deepEqual(publishingDetails(undoProject(project)), {title: 'Garden', description: ''});
+  assert.deepEqual(before.assets, project.assets);
+});
+
+test('SRT follows reordered scenes, retains gaps and rounds fractional timestamps', () => {
+  let project = planScenes(createProject('Three scenes'), 15);
+  const [first, second, third] = project.scenes;
+  project = setSceneCaption(project, first.id, 'First');
+  project = setSceneCaption(project, third.id, 'Third');
+  project = moveScene(project, first.id, 1);
+  assert.equal(captionSrt(project), '1\n00:00:05,000 --> 00:00:10,000\nFirst\n\n2\n00:00:10,000 --> 00:00:15,000\nThird\n');
+  project.scenes[0].duration = 1.125;
+  assert.match(captionSrt(project), /00:00:01,125 --> 00:00:06,125/);
+  project = setSceneCaption(project, first.id, '');
+  project = setSceneCaption(project, third.id, '');
+  assert.equal(captionSrt(project), '');
+});
+
+test('package records approved clip selection and audio without local paths or false QC claims', () => {
+  let project = planScenes(createProject('PRIVATE PROMPT', 'Garden'), 10);
+  const scene = project.scenes[0].id;
+  project = addAsset(project, scene, {kind: 'video', name: 'approved.mp4', sourcePath: 'C:\\private\\approved.mp4', duration: 5});
+  const approved = project.assets.at(-1).id;
+  project = updateAsset(project, approved, 'keep');
+  project = addAsset(project, scene, {kind: 'video', name: 'candidate.mp4', sourcePath: '/private/candidate.mp4', duration: 5});
+  project = addProjectAudio(project, {role: 'music', name: 'music.wav', sourcePath: '/private/music.wav'});
+  const before = JSON.stringify(project);
+  const result = makePublishingPackage(project);
+  assert.equal(JSON.stringify(project), before);
+  assert.equal(result.scenes[0].selectedClipId, approved);
+  assert.equal(result.scenes[1].selectedClipId, null);
+  assert.equal(result.audio.music, project.assets.at(-1).id);
+  assert.equal(result.finalVideoVerified, false);
+  assert.equal(result.costMode, 'FREE ONLY');
+  assert.match(result.warnings.join(' '), /scene\(s\): 2/);
+  assert.doesNotMatch(JSON.stringify(result), /PRIVATE PROMPT|sourcePath|C:\\\\private|\/private\/|"history"/);
+});
+
+test('invalid or paid projects and oversized metadata are refused', () => {
+  const project = planScenes(createProject('Garden'), 5);
+  assert.throws(() => makePublishingPackage({...project, costMode: 'PAID'}), /FREE ONLY/);
+  assert.throws(() => makePublishingPackage({...project, scenes: []}), /scene plan/);
+  assert.throws(() => setPublishingDetails(project, {title: ' '}), /title/);
+  assert.throws(() => setPublishingDetails(project, {title: 'x'.repeat(101)}), /title/);
+  assert.throws(() => setPublishingDetails(project, {title: 'Valid', description: 'x'.repeat(5001)}), /5000/);
+});
