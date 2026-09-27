@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {directorBrief,qualityTargets} from './director.mjs';
+import {directorBrief,qualityTargets,sceneDirection} from './director.mjs';
 
 function project(style='custom',hardwareMode='light'){
   return {style,hardwareMode,scenes:[
@@ -40,6 +40,15 @@ test('global targets include motion, identity, audio and prompt accuracy',()=>{
   assert.match(text,/CHARACTER CONSISTENCY/);
   assert.match(text,/MOTION QUALITY/);
   assert.match(text,/AUDIO INTENT/);
+});
+
+test('scene direction supplies camera motion continuity and audio intent',()=>{
+  const opening=sceneDirection(0,6);
+  const ending=sceneDirection(5,6);
+  assert.match(opening.shot,/wide establishing/i);
+  assert.match(opening.continuityGoal,/Establish identity/i);
+  assert.match(ending.camera,/loopable ending/i);
+  assert.match(ending.audioIntent,/final sound cue/i);
 });
 
 test('missing scene fails',()=>assert.throws(()=>directorBrief(project(),'missing'),/Scene missing/));
