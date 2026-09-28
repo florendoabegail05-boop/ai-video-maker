@@ -1,5 +1,7 @@
 import {finalVerificationGate} from './final-verification-gate.mjs';
 
+const HARD_TECHNICAL_REASONS=new Set(['facts-contradict','dimensions-mismatch','audio-absent']);
+
 function state(label,ok,blocking=false,details={}){return{label,ok:ok===true,blocking:blocking===true,...details};}
 
 export function outputReadinessSummary(project,factSets=[],options={}){
@@ -10,9 +12,16 @@ export function outputReadinessSummary(project,factSets=[],options={}){
   const rightsKnown=rights?.complete===true||rights?.status==='complete';
   const rightsBlocked=rights?.blocked===true||rights?.status==='blocked';
   const approvalCurrent=ownerApproval?.current===true||ownerApproval?.status==='approved-current';
+  const hardTechnicalBlockers=(technical.checks||[]).filter(item=>item.state==='BLOCKED'&&HARD_TECHNICAL_REASONS.has(item.reason));
+  const technicalHardBlocked=hardTechnicalBlockers.length>0;
 
   const checks=[
-    state('technical-verification',technical.passed,technical.passed!==true,{blockers:technical.blockers||[]}),
+    state('technical-verification',technical.passed,technicalHardBlocked,{
+      reason:technical.passed?'technical-pass':technicalHardBlocked?'technical-output-invalid':'technical-evidence-required',
+      blockers:technical.blockers||[],
+      blockerReasons:technical.blockerReasons||[],
+      hardBlockers:hardTechnicalBlockers.map(item=>item.id)
+    }),
     rightsBlocked
       ?state('rights-review',false,true,{reason:'rights-blocked'})
       :rightsKnown
@@ -26,7 +35,7 @@ export function outputReadinessSummary(project,factSets=[],options={}){
   const blockers=checks.filter(item=>item.blocking).map(item=>item.label);
   const remaining=checks.filter(item=>!item.ok).map(item=>item.label);
   const technicallyReady=technical.passed===true;
-  const readyForOwnerReview=technicallyReady&&blockers.length===0;
+  const readyForOwnerReview=technicallyReady&&!rightsBlocked&&blockers.length===0;
   const manualPublishEligible=readyForOwnerReview&&rightsKnown&&approvalCurrent;
 
   return {
@@ -35,6 +44,8 @@ export function outputReadinessSummary(project,factSets=[],options={}){
     projectId:project?.id||null,
     renderSignature:technical.renderSignature||null,
     technicallyReady,
+    technicalVerificationRequired:!technicallyReady&&!technicalHardBlocked,
+    technicalHardBlocked,
     readyForOwnerReview,
     manualPublishEligible,
     checks,
@@ -43,13 +54,14 @@ export function outputReadinessSummary(project,factSets=[],options={}){
     technical,
     publishAuthorized:false,
     automaticPublishingAllowed:false,
-    note:'This summary keeps technical verification, rights review and owner approval separate. Even when all are satisfied, publishing remains a manual owner-controlled action.'
+    note:'This summary keeps missing technical evidence separate from known-invalid output, rights review and owner approval. Even when all are satisfied, publishing remains a manual owner-controlled action.'
   };
 }
 
 export function outputReadinessLabel(summary){
   if(!summary||summary.kind!=='aivm-v2-output-readiness-summary')return 'UNKNOWN';
-  if(summary.blockers?.length)return 'BLOCKED';
+  if(summary.technicalHardBlocked===true)return 'BLOCKED';
+  if(summary.blockers?.includes('rights-review'))return 'BLOCKED';
   if(!summary.technicallyReady)return 'TECHNICAL VERIFICATION REQUIRED';
   if(summary.remaining?.includes('rights-review'))return 'RIGHTS REVIEW REQUIRED';
   if(summary.remaining?.includes('owner-approval'))return 'OWNER APPROVAL REQUIRED';
