@@ -9,7 +9,7 @@ function project(rightsStatus='owner-confirmed',title='Ready title'){
     scenes:[{id:'s1',order:1,duration:5,prompt:'x',caption:'',assetIds:['a1']}],
     assets:[{
       id:'a1',sceneId:'s1',kind:'video',name:'scene.mp4',hasFile:true,sourcePath:'/media/scene.mp4',provider:'local-import',status:'kept',locked:false,
-      provenance:{origin:'owner-created',rightsStatus,sourceLabel:'Owner media',credit:'',note:''}
+      provenance:{origin:'owner-created',rightsStatus,sourceLabel:'Owner media',credit:'',note:'Owner-recorded source note'}
     }],
     publishing:{title,description:'Description'}
   };
@@ -59,6 +59,17 @@ test('release input changes stale a previously verified approval',()=>{
   const facts=[machineFinalMediaFacts(p,{width:1080,height:1920,duration:5},'ffprobe')];
   const approval=makeVerifiedOwnerReleaseApproval(p,facts,approvalValues());
   const changed={...p,publishing:{...p.publishing,title:'Changed title'}};
+  const changedFacts=[machineFinalMediaFacts(changed,{width:1080,height:1920,duration:5},'ffprobe')];
+  const freshness=verifiedReleaseApprovalFreshness(changed,approval,changedFacts);
+  assert.equal(freshness.fresh,false);
+  assert.equal(freshness.reason,'release-inputs-changed');
+});
+
+test('provenance source detail changes stale a previously verified approval',()=>{
+  const p=project();
+  const facts=[machineFinalMediaFacts(p,{width:1080,height:1920,duration:5},'ffprobe')];
+  const approval=makeVerifiedOwnerReleaseApproval(p,facts,approvalValues());
+  const changed={...p,assets:p.assets.map(asset=>asset.id==='a1'?{...asset,provenance:{...asset.provenance,sourceLabel:'Changed source label'}}:asset)};
   const changedFacts=[machineFinalMediaFacts(changed,{width:1080,height:1920,duration:5},'ffprobe')];
   const freshness=verifiedReleaseApprovalFreshness(changed,approval,changedFacts);
   assert.equal(freshness.fresh,false);
