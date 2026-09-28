@@ -68,7 +68,8 @@ export function inspectOneClickSession(project,report,session,options={}){
   if(readyJobs.length)nextAction='RUN_NEXT_READY_JOB';
   else if(scheduled.manual.length)nextAction='OWNER_OR_MANUAL_INPUT_REQUIRED';
   else if(scheduled.blocked.length)nextAction='REVIEW_BLOCKERS';
-  else if(progress.complete)nextAction='VERIFY_OUTPUT';
+  else if(progress.readyForVerification)nextAction='VERIFY_OUTPUT';
+  else if(progress.settled)nextAction='REVIEW_BLOCKERS';
 
   return {
     valid:true,
@@ -98,7 +99,7 @@ export function oneClickCompletionStatus(project,report,session,{factSets=[],tec
     publishAuthorized:false
   };
 
-  if(!execution.progress.complete||execution.nextAction!=='VERIFY_OUTPUT'){
+  if(execution.progress.readyForVerification!==true||execution.nextAction!=='VERIFY_OUTPUT'){
     return {
       schema:1,
       kind:'aivm-v2-one-click-completion-status',
@@ -108,7 +109,7 @@ export function oneClickCompletionStatus(project,report,session,{factSets=[],tec
       manualPublishEligible:false,
       automaticPublishingAllowed:false,
       publishAuthorized:false,
-      note:'Output readiness is evaluated only after all required creation jobs finish successfully enough to reach VERIFY_OUTPUT. Failed, blocked or manual jobs must be resolved first.'
+      note:'Output readiness is evaluated only after all required creation jobs are DONE or SKIPPED and current. Failed, blocked, manual or stale jobs must be resolved first.'
     };
   }
 
