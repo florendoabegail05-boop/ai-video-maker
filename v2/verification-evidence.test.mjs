@@ -32,6 +32,27 @@ test('ffprobe explicit evidence outranks browser unknown evidence',()=>{
   assert.equal(verifiedTechnicalClaim(p,best),true);
 });
 
+test('trusted machine unknown outranks unsupported browser explicit stream claim',()=>{
+  const p=project(),sig=renderSignature(p);
+  const browser=makeTechnicalEvidence(true,{source:'browser',field:'audioStream',renderSignature:sig});
+  const ffprobe=makeTechnicalEvidence(null,{source:'ffprobe',field:'audioStream',renderSignature:sig});
+  const best=chooseBestTechnicalEvidence(p,browser,ffprobe);
+  assert.equal(best.source,'ffprobe');
+  assert.equal(best.trusted,true);
+  assert.equal(best.value,null);
+  assert.equal(verifiedTechnicalClaim(p,best),false);
+});
+
+test('supported browser explicit dimension can fill a trusted machine unknown',()=>{
+  const p=project(),sig=renderSignature(p);
+  const browser=makeTechnicalEvidence(true,{source:'browser',field:'width',renderSignature:sig,details:{actual:1080}});
+  const ffprobe=makeTechnicalEvidence(null,{source:'ffprobe',field:'width',renderSignature:sig});
+  const best=chooseBestTechnicalEvidence(p,browser,ffprobe);
+  assert.equal(best.source,'browser');
+  assert.equal(best.trusted,true);
+  assert.equal(best.value,true);
+});
+
 test('stale render-bound evidence becomes unknown',()=>{
   const p=project(),sig=renderSignature(p);
   const evidence=makeTechnicalEvidence(true,{source:'ffprobe',field:'audioStream',renderSignature:sig});
