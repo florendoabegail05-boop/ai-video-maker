@@ -38,4 +38,25 @@ test('summary points to unfinished work and never authorizes publish',()=>{
  let ledger=createDraftExecutionLedger(project(),report(),{wantAudio:false});
  const summary=draftExecutionSummary(ledger);
  assert.ok(summary.unfinished>0);assert.equal(summary.publishAuthorized,false);assert.ok(summary.next);
+ assert.equal(summary.readyForVerification,false);
+});
+
+test('settled failed work is not successful or ready for verification',()=>{
+ let ledger=createDraftExecutionLedger(project(),report(),{wantAudio:false});
+ ledger={...ledger,entries:ledger.entries.map(entry=>entry.state==='OPTIONAL'?entry:{...entry,state:entry.jobId==='image:s1'?'FAILED':'DONE',stale:false})};
+ const summary=draftExecutionSummary(ledger);
+ assert.equal(summary.settled,true);
+ assert.equal(summary.complete,true);
+ assert.equal(summary.successful,false);
+ assert.equal(summary.readyForVerification,false);
+});
+
+test('all required DONE or SKIPPED jobs are ready for verification even with optional jobs untouched',()=>{
+ let ledger=createDraftExecutionLedger(project(),report(),{wantAudio:false,wantMotion:false,wantCaptions:false});
+ ledger={...ledger,entries:ledger.entries.map(entry=>entry.state==='OPTIONAL'?entry:{...entry,state:'DONE',stale:false})};
+ const summary=draftExecutionSummary(ledger);
+ assert.equal(summary.settled,true);
+ assert.equal(summary.successful,true);
+ assert.equal(summary.readyForVerification,true);
+ assert.equal(summary.required,ledger.entries.filter(entry=>entry.state!=='OPTIONAL').length);
 });
