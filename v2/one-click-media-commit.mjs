@@ -28,13 +28,26 @@ function parentForMotion(project,sceneId,result={}){
   return reusable?{ok:true,parentAssetId:reusable.id}:{ok:false,reason:'motion-source-image-missing'};
 }
 
+function staleMotionGenerationReason(project,envelope,result,dispatchReason){
+  if(envelope?.jobType!=='motion'||!String(dispatchReason||'').startsWith('stale-dispatch:'))return null;
+  const expectedParentId=clean(envelope.payload?.sourceAssetId||envelope.generationGuard?.parentAssetId,120);
+  const reportedParentId=clean(result?.parentAssetId,120);
+  if(!expectedParentId||!reportedParentId||reportedParentId===expectedParentId)return null;
+  const route=clean(envelope.payload?.route||'local-generated',120);
+  const generation=validateGenerationInputGuard(project,envelope.generationGuard,{route,parentAssetId:reportedParentId});
+  return generation.ok?null:`stale-generation:${generation.reason}`;
+}
+
 export function prepareGeneratedMediaRegistration(project,envelope,result={}){
   if(!project?.id)return {ok:false,reason:'project-missing'};
   if(!envelope||envelope.kind!=='aivm-v2-one-click-dispatch-envelope')return {ok:false,reason:'invalid-envelope'};
   const kind=MEDIA_KIND_BY_JOB[envelope.jobType];
   if(!kind)return {ok:false,reason:'job-does-not-produce-scene-media'};
   const dispatch=validateOneClickDispatch(project,envelope);
-  if(!dispatch.ok)return {ok:false,reason:dispatch.reason};
+  if(!dispatch.ok){
+    const generationReason=staleMotionGenerationReason(project,envelope,result,dispatch.reason);
+    return {ok:false,reason:generationReason||dispatch.reason};
+  }
   if(!resultOk(result))return {ok:false,reason:'executor-result-not-successful'};
   const sceneId=envelope.sceneId;
   const scene=(project.scenes||[]).find(item=>item.id===sceneId);
