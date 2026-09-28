@@ -98,14 +98,17 @@ export function oneClickCompletionStatus(project,report,session,{factSets=[],tec
     publishAuthorized:false
   };
 
-  if(!execution.progress.complete){
+  if(!execution.progress.complete||execution.nextAction!=='VERIFY_OUTPUT'){
     return {
       schema:1,
       kind:'aivm-v2-one-click-completion-status',
       state:execution.nextAction,
       execution,
       readiness:null,
-      publishAuthorized:false
+      manualPublishEligible:false,
+      automaticPublishingAllowed:false,
+      publishAuthorized:false,
+      note:'Output readiness is evaluated only after all required creation jobs finish successfully enough to reach VERIFY_OUTPUT. Failed, blocked or manual jobs must be resolved first.'
     };
   }
 
@@ -125,6 +128,6 @@ export function oneClickCompletionStatus(project,report,session,{factSets=[],tec
     manualPublishEligible:readiness.manualPublishEligible===true,
     automaticPublishingAllowed:false,
     publishAuthorized:false,
-    note:'Finishing all draft jobs does not equal publish approval. Rights readiness is derived from current project provenance, and owner approval counts only when a complete release-approval record is fresh for the current release inputs. Publishing remains manual.'
+    note:'Finishing all required creation jobs does not equal publish approval. Rights readiness is derived from current project provenance, and owner approval counts only when a complete release-approval record is fresh for the current release inputs. Publishing remains manual.'
   };
 }
