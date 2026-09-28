@@ -9,6 +9,16 @@ function evidenceState(reconciliation,field){
   return {known,verified:known&&fact.value===true,value:known?fact.value:null,source:fact.source||'unknown'};
 }
 
+function addEvidenceCheck(checks,reconciliation,field,id,label,required){
+  const fact=reconciliation.selected[field];
+  const known=fact?.trusted===true&&fact?.stale!==true&&(fact?.value===true||fact?.value===false);
+  const verified=known&&fact?.value===true;
+  if(required&&!known)checks.push({id,state:'BLOCKED',message:`Current trusted ${label} evidence is required but missing.`,reason:`${field}-unknown`});
+  else if(required&&!verified)checks.push({id,state:'BLOCKED',message:`Current trusted ${label} evidence is present but invalid.`,reason:`${field}-invalid`,actual:fact?.details?.actual??null,source:fact?.source||'unknown'});
+  else if(verified)checks.push({id,state:'PASS',message:`Current trusted ${label} evidence is available.`,reason:`${field}-known`,actual:fact.details?.actual??null,source:fact.source||'unknown'});
+  else checks.push({id,state:'INFO',message:`${label[0].toUpperCase()+label.slice(1)} is not verified; it is not required by this gate.`,reason:`${field}-optional-unknown`});
+}
+
 export function finalVerificationGate(project,factSets=[],{
   expectedWidth=1080,
   expectedHeight=1920,
@@ -62,19 +72,20 @@ export function finalVerificationGate(project,factSets=[],{
     add('audio-stream',audio.known?'PASS':'INFO',audio.known?(audio.verified?'Audio stream verified present.':'Audio stream verified absent.'):'Audio stream status is unknown; audio is not required by this gate.',{reason,source:audio.source});
   }
 
-  for(const [field,id,label,required] of [
-    ['fps','fps','FPS',requireFps],
-    ['videoCodec','video-codec','video codec',requireCodecs],
-    ['container','container','container',requireContainer]
-  ]){
-    const fact=reconciliation.selected[field];
-    const known=fact?.trusted===true&&fact?.stale!==true&&(fact?.value===true||fact?.value===false);
-    const verified=known&&fact?.value===true;
-    if(required&&!known)add(id,'BLOCKED',`Current trusted ${label} evidence is required but missing.`,{reason:`${field}-unknown`});
-    else if(required&&!verified)add(id,'BLOCKED',`Current trusted ${label} evidence is present but invalid.`,{reason:`${field}-invalid`,actual:fact?.details?.actual??null,source:fact?.source||'unknown'});
-    else if(verified)add(id,'PASS',`Current trusted ${label} evidence is available.`,{reason:`${field}-known`,actual:fact.details?.actual??null,source:fact.source||'unknown'});
-    else add(id,'INFO',`${label[0].toUpperCase()+label.slice(1)} is not verified; it is not required by this gate.`,{reason:`${field}-optional-unknown`});
+  addEvidenceCheck(checks,reconciliation,'fps','fps','FPS',requireFps);
+  addEvidenceCheck(checks,reconciliation,'videoCodec','video-codec','video codec',requireCodecs);
+
+  if(requireCodecs&&audio.verified){
+    addEvidenceCheck(checks,reconciliation,'audioCodec','audio-codec','audio codec',true);
+  }else if(requireCodecs&&audio.known&&!audio.verified){
+    add('audio-codec','INFO','Audio codec is not applicable because the rendered file is verified without an audio stream.',{reason:'audioCodec-not-applicable',source:audio.source});
+  }else if(requireCodecs&&!audio.known){
+    add('audio-codec','INFO','Audio codec cannot be required until current trusted evidence establishes that an audio stream exists.',{reason:'audioCodec-stream-unknown',source:audio.source});
+  }else{
+    addEvidenceCheck(checks,reconciliation,'audioCodec','audio-codec','audio codec',false);
   }
+
+  addEvidenceCheck(checks,reconciliation,'container','container','container',requireContainer);
 
   const blocking=checks.filter(item=>item.state==='BLOCKED');
   return {
@@ -88,6 +99,6 @@ export function finalVerificationGate(project,factSets=[],{
     blockerReasons:blocking.map(item=>item.reason||'unknown'),
     reconciliation,
     publishAuthorized:false,
-    note:'This gate verifies technical render facts only. It distinguishes missing evidence from known-invalid media values, and it does not prove artistic quality, rights, platform eligibility, native AI audio, lip-sync quality, or publication readiness.'
+    note:'This gate verifies technical render facts only. When codecs are required, video codec evidence is required for every render and audio codec evidence is required when a current trusted audio stream is verified present. It distinguishes missing evidence from known-invalid media values and does not prove artistic quality, rights, platform eligibility, native AI audio, lip-sync quality, or publication readiness.'
   };
 }
