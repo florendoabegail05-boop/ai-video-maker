@@ -4,6 +4,7 @@ import {createOneClickSession,inspectOneClickSession,oneClickCompletionStatus} f
 
 function project(){return {
   id:'p1',revision:1,prompt:'Make a short',style:'cinematic',hardwareMode:'light',
+  bible:{character:'',world:'',visualRules:''},
   scenes:[{id:'s1',order:0,duration:5,prompt:'Scene one',caption:'',assetIds:[]}],
   assets:[]
 };}
@@ -68,4 +69,28 @@ test('incomplete session never produces publish readiness',()=>{
   assert.equal(status.readiness,null);
   assert.equal(status.publishAuthorized,false);
   assert.notEqual(status.state,'OWNER APPROVED — MANUAL PUBLISH ONLY');
+});
+
+test('terminal failed creation job cannot fall through into final readiness',()=>{
+  const p=project(),r=report();
+  const session=createOneClickSession(p,r,{creation:{wantAudio:false,wantMotion:true,wantCaptions:true}});
+  const failedSession={
+    ...session,
+    ledger:{
+      ...session.ledger,
+      entries:session.ledger.entries.map(entry=>({
+        ...entry,
+        state:entry.jobId==='image:s1'?'FAILED':entry.state==='OPTIONAL'?'OPTIONAL':'DONE',
+        stale:false
+      }))
+    }
+  };
+  const inspected=inspectOneClickSession(p,r,failedSession,{creation:{wantAudio:false,wantMotion:true,wantCaptions:true}});
+  assert.equal(inspected.progress.complete,true);
+  assert.equal(inspected.nextAction,'REVIEW_BLOCKERS');
+  const status=oneClickCompletionStatus(p,r,failedSession,{creation:{wantAudio:false,wantMotion:true,wantCaptions:true}});
+  assert.equal(status.state,'REVIEW_BLOCKERS');
+  assert.equal(status.readiness,null);
+  assert.equal(status.manualPublishEligible,false);
+  assert.equal(status.publishAuthorized,false);
 });
