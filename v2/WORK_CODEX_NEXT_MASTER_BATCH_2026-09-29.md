@@ -22,6 +22,7 @@ node --test \
   v2/verification-evidence.test.mjs \
   v2/final-media-facts.test.mjs \
   v2/final-verification-gate.test.mjs \
+  v2/technical-verification-signature.test.mjs \
   v2/output-readiness-summary.test.mjs \
   v2/verified-release-approval.test.mjs \
   v2/current-release-context.test.mjs
@@ -47,6 +48,8 @@ Re-run the established local checks already used successfully on this branch:
 Technical facts must stay bound to the current render signature. Browser-only facts may establish width/height/duration/file size/MIME only; stream/FPS/codec/container claims require bridge/FFprobe-class evidence.
 
 Before owner release approval, require current FFprobe/bridge-class evidence for width, height and duration. Browser-only evidence is not sufficient for the verified owner-approval record.
+
+The verified approval must also be bound to the deterministic current technical-evidence stamp from `technical-verification-signature.mjs`. Re-running the same machine facts may keep the stamp stable, but changed measured facts or changed required gate configuration must invalidate the prior approval until reviewed again.
 
 ## Phase 3 — minimal Studio one-click integration
 Integrate the current modules instead of rebuilding parallel logic:
@@ -99,12 +102,15 @@ Keep these stages separate:
 3. current project provenance/rights review
 4. publishing title present
 5. current FFprobe/bridge-class width + height + duration evidence
-6. fresh explicit verified owner release approval
-7. manual publish action
+6. deterministic technical-verification stamp for the current gate + measured facts
+7. fresh explicit verified owner release approval
+8. manual publish action
 
-One-click release approval must be `aivm-v2-verified-owner-release-approval` with `technicalVerifiedAtApproval:true`. Legacy `aivm-v2-owner-release-approval` records and arbitrary booleans must not satisfy the one-click release boundary.
+One-click release approval must be `aivm-v2-verified-owner-release-approval` with `technicalVerifiedAtApproval:true` and a matching `technicalVerificationSignature`. Legacy `aivm-v2-owner-release-approval` records and arbitrary booleans must not satisfy the one-click release boundary.
 
-If title/description, render inputs, provenance, rights status, credits, or other release-signature inputs change after approval, require owner review again.
+If title/description, render inputs, provenance, rights status, credits, measured required technical facts, technical gate requirements, or other release-signature inputs change after approval, require owner review again.
+
+If the current trusted fact set is missing, do not treat a previously verified approval as current merely because the project itself did not change.
 
 Even at the final state:
 - `publishAuthorized:false`
