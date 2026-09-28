@@ -14,7 +14,7 @@ function completedSession(p,r){
     ...session,
     ledger:{
       ...session.ledger,
-      entries:session.ledger.entries.map(entry=>entry.state==='OPTIONAL'?entry:{...entry,state:'DONE',stale:false})
+      entries:session.ledger.entries.map(entry=>entry.plannedState==='OPTIONAL'?entry:{...entry,state:'DONE',stale:false})
     }
   };
 }
@@ -27,7 +27,7 @@ test('status view starts with creation progress and no publish authority',()=>{
   assert.equal(view.publishAuthorized,false);
   assert.equal(view.automaticPublishingAllowed,false);
   assert.equal(view.sections[0].state,'DONE');
-  assert.equal(view.creationProgress.actionable,s.ledger.entries.filter(item=>item.state!=='OPTIONAL').length);
+  assert.equal(view.creationProgress.actionable,s.ledger.entries.filter(item=>item.plannedState!=='OPTIONAL').length);
 });
 
 test('changed project requires replan instead of continuing stale session',()=>{
@@ -73,7 +73,7 @@ test('settled failed creation remains blocked and does not masquerade as final v
       ...session.ledger,
       entries:session.ledger.entries.map(entry=>({
         ...entry,
-        state:entry.jobId==='image:s1'?'FAILED':entry.state==='OPTIONAL'?'OPTIONAL':'DONE',
+        state:entry.jobId==='image:s1'?'FAILED':entry.plannedState==='OPTIONAL'?'OPTIONAL':'DONE',
         stale:false
       }))
     }
@@ -86,4 +86,21 @@ test('settled failed creation remains blocked and does not masquerade as final v
   assert.equal(view.sections.find(item=>item.id==='verify').state,'WAITING');
   assert.equal(view.sections.find(item=>item.id==='review').state,'WAITING');
   assert.equal(view.manualPublishEligible,false);
+});
+
+test('skipped optional jobs stay outside required progress totals',()=>{
+  const p=project(),r=report();
+  const session=createOneClickSession(p,r,{creation:{wantAudio:false,wantMotion:true,wantCaptions:false}});
+  const optionalIds=new Set(session.ledger.entries.filter(entry=>entry.plannedState==='OPTIONAL').map(entry=>entry.jobId));
+  const adjusted={
+    ...session,
+    ledger:{
+      ...session.ledger,
+      entries:session.ledger.entries.map(entry=>optionalIds.has(entry.jobId)?{...entry,state:'SKIPPED'}:entry)
+    }
+  };
+  const view=oneClickStatusView(p,r,adjusted,{creation:{wantAudio:false,wantMotion:true,wantCaptions:false}});
+  assert.equal(view.creationProgress.optional,optionalIds.size);
+  assert.equal(view.creationProgress.actionable,session.ledger.entries.length-optionalIds.size);
+  assert.equal(view.progress,0);
 });
