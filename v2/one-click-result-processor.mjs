@@ -35,19 +35,19 @@ export function processOneClickDispatchResult(project,report,session,envelope,re
 
   if(!resultOk(result)){
     const failureReason=clean(result?.error||result?.reason||result?.message||'Executor reported failure.');
+    const failureCode=clean(result?.code||result?.errorCode||result?.reasonCode,120);
     const failedLedger=rejectDraftJobResult(session.ledger,job.id,failureReason);
     const failedEntry=failedLedger.entries.find(item=>item.jobId===job.id);
-    const retry=evaluateDraftJobRetry(job,failedEntry,{limits:options.retryLimits||{},failureReason});
-    let nextAction='REVIEW_FAILURE';
-    if(retry.allowed)nextAction='RETRY_ELIGIBLE';
-    else if(retry.reason==='state-changed-replan-required')nextAction='REPLAN';
-    else if(retry.reason==='owner-or-paid-action-required')nextAction='OWNER_OR_MANUAL_INPUT_REQUIRED';
+    const retry=evaluateDraftJobRetry(job,failedEntry,{limits:options.retryLimits||{},failureReason,failureCode});
+    const nextAction=retry.allowed?'RETRY_ELIGIBLE':retry.failure?.nextAction||'REVIEW_FAILURE';
     return {
       accepted:false,
       reason:'executor-failure',
       failureReason,
+      failureCode:failureCode||null,
       nextAction,
       retry,
+      failure:retry.failure||null,
       session:{...session,ledger:failedLedger},
       publishAuthorized:false,
       automaticRetryAllowed:false,
