@@ -19,12 +19,21 @@ export function evaluateDraftJobRetry(job,entry,{limits={},failureReason='',fail
   if(entry.state!=='FAILED')return {allowed:false,reason:'not-failed',automaticRetryAllowed:false};
   const limit=retryLimitForJob(job,limits);
   const attempts=Number(entry.attempts)||0;
-  if(attempts>=limit)return {allowed:false,reason:'retry-limit-reached',attempts,limit,automaticRetryAllowed:false};
   const failure=classifyJobFailure({code:failureCode,message:clean(failureReason||entry.message)});
   if(!failure.retryEligible){
     return {
       allowed:false,
       reason:failure.reason,
+      attempts,
+      limit,
+      failure,
+      automaticRetryAllowed:false
+    };
+  }
+  if(attempts>=limit){
+    return {
+      allowed:false,
+      reason:'retry-limit-reached',
       attempts,
       limit,
       failure,
