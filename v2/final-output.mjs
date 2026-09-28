@@ -3,6 +3,13 @@ import {renderSignature} from './render-signature.mjs';
 function number(value){if(value===null||value===undefined||value==='')return null;const n=Number(value);return Number.isFinite(n)?n:null;}
 function frameRate(value){if(typeof value==='string'&&/^\d+\/\d+$/.test(value)){const [n,d]=value.split('/').map(Number);return d?n/d:null;}return number(value);}
 function clean(value,max=240){return String(value||'').replace(/\s+/g,' ').trim().slice(0,max);}
+function portableProvider(value){
+  const provider=clean(value,120);
+  if(!provider)return null;
+  if(/[\\/]/.test(provider))return null;
+  if(/^(?:[a-zA-Z]:|[a-z][a-z0-9+.-]*:)/i.test(provider))return null;
+  return provider;
+}
 
 export function expectedOutput(project,{aspect='9:16',width=1080,height=1920,fps=30}={}){
   const duration=(project?.scenes||[]).reduce((sum,scene)=>sum+(Number(scene.duration)||0),0);
@@ -44,7 +51,7 @@ export function makeFinalOutputManifest(project,media,options={}){
     expected:report.expected,
     actual:report.actual,
     issues:report.issues,
-    provider:clean(media?.provider||media?.encoder||'',120)||null,
+    provider:portableProvider(media?.provider||media?.encoder||''),
     note:'Portable verification metadata only. Local file paths, media bytes and bridge URLs are intentionally excluded.'
   };
 }
