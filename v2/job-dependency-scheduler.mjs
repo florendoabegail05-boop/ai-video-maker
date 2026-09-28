@@ -3,6 +3,12 @@ const WAIT_STATES=new Set(['PENDING','RUNNING']);
 
 function entryMap(ledger){return new Map((ledger?.entries||[]).map(entry=>[entry.jobId,entry]));}
 function jobMap(plan){return new Map((plan?.jobs||[]).map(job=>[job.id,job]));}
+function revisionOf(value){
+  if(value===null||value===undefined||value==='')return null;
+  const number=Number(value);
+  return Number.isFinite(number)?number:null;
+}
+function emptySchedule(reason,details={}){return {ready:[],blocked:[],manual:[],waiting:[],reason,...details};}
 
 export function jobDependencies(job,plan){
   if(!job?.id)return [];
@@ -31,7 +37,11 @@ function dependencyState(entries,ids){
 export function schedulableDraftJobs(plan,ledger){
   if(!plan||plan.kind!=='aivm-v2-draft-job-plan')throw Error('Draft job plan is required.');
   if(!ledger||ledger.kind!=='aivm-v2-draft-execution-ledger')throw Error('Draft execution ledger is required.');
-  if(plan.projectId!==ledger.projectId)return {ready:[],blocked:[],manual:[],waiting:[],reason:'project-mismatch'};
+  if(plan.projectId!==ledger.projectId)return emptySchedule('project-mismatch');
+  const planRevision=revisionOf(plan.projectRevision),ledgerRevision=revisionOf(ledger.projectRevision);
+  if(planRevision!==ledgerRevision){
+    return emptySchedule('project-revision-mismatch',{planRevision,ledgerRevision});
+  }
   const jobs=jobMap(plan),entries=entryMap(ledger);
   const ready=[],blocked=[],manual=[],waiting=[];
   for(const job of jobs.values()){
@@ -48,7 +58,7 @@ export function schedulableDraftJobs(plan,ledger){
     if(dep.waiting.length){waiting.push({jobId:job.id,reason:'dependency-waiting',dependencies:dep});continue;}
     ready.push({jobId:job.id,type:job.type,sceneId:job.sceneId||null,dependencies:deps});
   }
-  return {ready,blocked,manual,waiting,reason:'ok'};
+  return {ready,blocked,manual,waiting,reason:'ok',planRevision,ledgerRevision};
 }
 
 export function nextSchedulableDraftJob(plan,ledger){
@@ -62,6 +72,10 @@ export function draftScheduleSummary(plan,ledger){
     schema:1,
     kind:'aivm-v2-draft-schedule-summary',
     projectId:plan?.projectId||null,
+    valid:result.reason==='ok',
+    reason:result.reason,
+    planRevision:result.planRevision??revisionOf(plan?.projectRevision),
+    ledgerRevision:result.ledgerRevision??revisionOf(ledger?.projectRevision),
     ready:result.ready.length,
     blocked:result.blocked.length,
     manual:result.manual.length,
@@ -69,6 +83,6 @@ export function draftScheduleSummary(plan,ledger){
     next:result.ready[0]||null,
     automaticExecutionAllowed:false,
     publishAuthorized:false,
-    note:'Scheduling is advisory. A READY job may start only through the live executor using current operation guards. This module never runs providers, deletes files, uploads media, enables paid routes, or publishes.'
+    note:'Scheduling is advisory and revision-bound. A READY job may start only when the plan and ledger belong to the same project revision and through the live executor using current operation guards. This module never runs providers, deletes files, uploads media, enables paid routes, or publishes.'
   };
 }
