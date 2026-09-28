@@ -2,6 +2,7 @@ import {buildDraftJobPlan} from './draft-job-plan.mjs';
 import {createDraftExecutionLedger,draftExecutionSummary} from './draft-execution-ledger.mjs';
 import {schedulableDraftJobs} from './job-dependency-scheduler.mjs';
 import {draftPlanFingerprint} from './draft-plan-fingerprint.mjs';
+import {currentReleaseContext} from './current-release-context.mjs';
 import {outputReadinessSummary,outputReadinessLabel} from './output-readiness-summary.mjs';
 
 function compactJob(plan,entry){
@@ -86,7 +87,7 @@ export function inspectOneClickSession(project,report,session,options={}){
   };
 }
 
-export function oneClickCompletionStatus(project,report,session,{factSets=[],technical={},rights=null,ownerApproval=null,creation={}}={}){
+export function oneClickCompletionStatus(project,report,session,{factSets=[],technical={},ownerReleaseApproval=null,creation={}}={}){
   const execution=inspectOneClickSession(project,report,session,{creation});
   if(!execution.valid)return {
     schema:1,
@@ -108,16 +109,22 @@ export function oneClickCompletionStatus(project,report,session,{factSets=[],tec
     };
   }
 
-  const readiness=outputReadinessSummary(project,factSets,{technical,rights,ownerApproval});
+  const releaseContext=currentReleaseContext(project,{ownerReleaseApproval});
+  const readiness=outputReadinessSummary(project,factSets,{
+    technical,
+    rights:releaseContext.rights,
+    ownerApproval:releaseContext.ownerApproval
+  });
   return {
     schema:1,
     kind:'aivm-v2-one-click-completion-status',
     state:outputReadinessLabel(readiness),
     execution,
     readiness,
+    releaseContext,
     manualPublishEligible:readiness.manualPublishEligible===true,
     automaticPublishingAllowed:false,
     publishAuthorized:false,
-    note:'Finishing all draft jobs does not equal publish approval. Technical verification, rights review and current owner approval remain separate requirements.'
+    note:'Finishing all draft jobs does not equal publish approval. Rights readiness is derived from current project provenance, and owner approval counts only when a complete release-approval record is fresh for the current release inputs. Publishing remains manual.'
   };
 }
