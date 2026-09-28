@@ -105,6 +105,26 @@ test('setFinalVerification strips path-like provider labels even from an otherwi
   assert.doesNotMatch(JSON.stringify(pack),/Users\\Abe|PRIVATE VERIFY PROMPT/);
 });
 
+test('setFinalVerification whitelists portable technical fields instead of copying arbitrary nested metadata',()=>{
+  let project=planScenes(createProject('PRIVATE SNAPSHOT PROMPT','Verified video'),5);
+  const manifest=makeFinalOutputManifest(project,{video:{width:1080,height:1920,fps:30},duration:5,bytes:2_000_000,provider:'ffmpeg'});
+  const tainted={
+    ...manifest,
+    verifiedAt:'C:\\Users\\Abe\\private-time.txt',
+    expected:{...manifest.expected,sourcePath:'C:\\private\\expected.json',secret:'EXPECTED_SECRET'},
+    actual:{...manifest.actual,outputPath:'/private/final.mp4',bridgeUrl:'http://127.0.0.1/private',secret:'ACTUAL_SECRET'},
+    issues:[{code:'LOW_FPS',severity:'warning',message:'C:\\Users\\Abe\\private-final.mp4'}]
+  };
+  project=setFinalVerification(project,tainted);
+  const saved=project.publishing.finalVerification;
+  assert.equal(saved.verifiedAt,null);
+  assert.deepEqual(Object.keys(saved.expected).sort(),['aspect','duration','fps','height','width']);
+  assert.deepEqual(Object.keys(saved.actual).sort(),['bytes','duration','fps','hasAudio','hasVideo','height','width']);
+  assert.equal(saved.issues[0].message,'Verified frame rate is below the preferred threshold.');
+  const pack=makePublishingPackage(project);
+  assert.doesNotMatch(JSON.stringify(pack),/Users\\Abe|\/private\/|127\.0\.0\.1|EXPECTED_SECRET|ACTUAL_SECRET|PRIVATE SNAPSHOT PROMPT/);
+});
+
 test('failed, wrong-project or malformed verification cannot be saved as verified',()=>{
   const project=planScenes(createProject('Verify me','Verify'),5);
   const failed=makeFinalOutputManifest(project,{video:{width:720,height:1280},duration:5,bytes:2_000_000});
