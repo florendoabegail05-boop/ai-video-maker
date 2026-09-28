@@ -20,8 +20,8 @@ test('browser-only technical pass cannot mint a verified approval stamp',()=>{
 
 test('ffprobe-class core facts create a stable portable stamp',()=>{
   const p=project();
-  const first=machineFinalMediaFacts(p,{width:1080,height:1920,duration:5,fps:30,audioStream:true,videoCodec:'h264',container:'mov,mp4',observedAt:'2026-09-29T00:00:00Z'},'ffprobe');
-  const second=machineFinalMediaFacts(p,{width:1080,height:1920,duration:5,fps:30,audioStream:true,videoCodec:'h264',container:'mov,mp4',observedAt:'2026-09-29T00:05:00Z'},'ffprobe');
+  const first=machineFinalMediaFacts(p,{width:1080,height:1920,duration:5,fps:30,audioStream:true,videoCodec:'h264',audioCodec:'aac',container:'mov,mp4',observedAt:'2026-09-29T00:00:00Z'},'ffprobe');
+  const second=machineFinalMediaFacts(p,{width:1080,height:1920,duration:5,fps:30,audioStream:true,videoCodec:'h264',audioCodec:'aac',container:'mov,mp4',observedAt:'2026-09-29T00:05:00Z'},'ffprobe');
   const a=currentTechnicalVerificationStamp(p,[first]);
   const b=currentTechnicalVerificationStamp(p,[second]);
   assert.equal(a.eligible,true);
@@ -32,7 +32,7 @@ test('ffprobe-class core facts create a stable portable stamp',()=>{
 
 test('required gate configuration participates in the stamp',()=>{
   const p=project();
-  const facts=[machineFinalMediaFacts(p,{width:1080,height:1920,duration:5,fps:30,audioStream:true,videoCodec:'h264',container:'mov,mp4'},'ffprobe')];
+  const facts=[machineFinalMediaFacts(p,{width:1080,height:1920,duration:5,fps:30,audioStream:true,videoCodec:'h264',audioCodec:'aac',container:'mov,mp4'},'ffprobe')];
   const base=currentTechnicalVerificationStamp(p,facts);
   const stricter=currentTechnicalVerificationStamp(p,facts,{requireAudioStream:true,requireFps:true,requireCodecs:true,requireContainer:true});
   assert.equal(base.eligible,true);
@@ -49,11 +49,29 @@ test('changed trusted measured duration changes the approval evidence stamp',()=
   assert.notEqual(a.signature,b.signature);
 });
 
+test('required codec stamp changes when verified audio codec changes',()=>{
+  const p=project();
+  const options={requireCodecs:true};
+  const a=currentTechnicalVerificationStamp(p,[machineFinalMediaFacts(p,{width:1080,height:1920,duration:5,audioStream:true,videoCodec:'h264',audioCodec:'aac'},'ffprobe')],options);
+  const b=currentTechnicalVerificationStamp(p,[machineFinalMediaFacts(p,{width:1080,height:1920,duration:5,audioStream:true,videoCodec:'h264',audioCodec:'opus'},'ffprobe')],options);
+  assert.equal(a.eligible,true);
+  assert.equal(b.eligible,true);
+  assert.notEqual(a.signature,b.signature);
+});
+
+test('required codec stamp is ineligible when an audio-bearing render lacks audio codec evidence',()=>{
+  const p=project();
+  const stamp=currentTechnicalVerificationStamp(p,[machineFinalMediaFacts(p,{width:1080,height:1920,duration:5,audioStream:true,videoCodec:'h264'},'ffprobe')],{requireCodecs:true});
+  assert.equal(stamp.eligible,false);
+  assert.equal(stamp.signature,null);
+  assert.ok(stamp.descriptor.blockerReasons.includes('audioCodec-unknown'));
+});
+
 test('descriptor includes only fields required by the configured gate beyond core facts',()=>{
   const p=project();
-  const facts=[machineFinalMediaFacts(p,{width:1080,height:1920,duration:5,fps:30,audioStream:true,videoCodec:'h264',container:'mov,mp4'},'ffprobe')];
+  const facts=[machineFinalMediaFacts(p,{width:1080,height:1920,duration:5,fps:30,audioStream:true,videoCodec:'h264',audioCodec:'aac',container:'mov,mp4'},'ffprobe')];
   const base=technicalVerificationDescriptor(p,facts);
   assert.deepEqual(Object.keys(base.selected).sort(),['duration','height','width']);
   const strict=technicalVerificationDescriptor(p,facts,{requireAudioStream:true,requireFps:true,requireCodecs:true,requireContainer:true});
-  assert.deepEqual(Object.keys(strict.selected).sort(),['audioStream','container','duration','fps','height','videoCodec','width'].sort());
+  assert.deepEqual(Object.keys(strict.selected).sort(),['audioCodec','audioStream','container','duration','fps','height','videoCodec','width'].sort());
 });
