@@ -5,7 +5,7 @@ function stage(id,label,state,message,details={}){return{id,label,state,message,
 
 export function buildCreationPlan(project,report,{wantAudio=true,wantCaptions=true,wantMotion=true}={}){
   const route=buildRoutePlan(report,{costMode:'FREE ONLY'});
-  const disclosure=capabilityDisclosure(project,report,{});
+  const disclosure=capabilityDisclosure(report,{project,costMode:'FREE ONLY'});
   const stages=[];
 
   stages.push(stage('director','AI Director','READY','Create or refresh the structured scene plan from the project prompt.'));
@@ -43,8 +43,8 @@ export function buildCreationPlan(project,report,{wantAudio=true,wantCaptions=tr
     canCreateDraft:blockers.every(item=>item.id!=='images'),
     canAssembleFinal:blockers.every(item=>item.id!=='assemble'),
     canVerifyFinal:blockers.every(item=>item.id!=='verify'),
-    blockers: blockers.map(item=>item.id),
-    manualSteps: manual.map(item=>item.id),
+    blockers:blockers.map(item=>item.id),
+    manualSteps:manual.map(item=>item.id),
     stages,
     disclosure,
     ownerApprovalRequired:false,
