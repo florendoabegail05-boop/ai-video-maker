@@ -10,6 +10,7 @@ import { comfyConfigured, runComfyWorkflow } from './comfyui-runner.mjs';
 import { createMotionFallback } from './motion-fallback.mjs';
 import { createImageFallback } from './image-fallback.mjs';
 import {verifiedFreeImageWorkflow,loopbackHttpUrl} from './free-workflow.mjs';
+import {liveWorkflowReferenceCapabilities} from './workflow-capabilities.mjs';
 import { diagnostics, routeKind } from './hardware-diagnostics.mjs';
 import { LocalJobQueue } from './job-queue.mjs';
 
@@ -35,6 +36,9 @@ async function getWorkflowStatuses() { return Object.fromEntries(await Promise.a
 async function getDiagnostics(force = false) { if (!force && diagnosticsCache.value && diagnosticsCache.expires > Date.now()) return diagnosticsCache.value; const value = await diagnostics(); diagnosticsCache.value = value; diagnosticsCache.expires = Date.now() + 15000; return value; }
 
 async function forward(kind, request) {
+  // No reference-node mapping has been verified on the owner machine.
+  const {references,characterReferences,worldReferences,...supportedRequest}=request;
+  request=supportedRequest;
   const report = await getDiagnostics();
   const route = routeKind(kind, report);
   const comfy = comfyFor(kind);
@@ -87,7 +91,7 @@ const server = http.createServer(async (req, res) => {
   const jobMatch = req.method === 'GET' && /^\/v1\/jobs\/([^/]+)$/.exec(req.url || '');
   if (jobMatch) { const job = generationQueue.get(jobMatch[1]); return json(res, job ? 200 : 404, job || { status: 'not_found' }); }
   if (req.method === 'GET' && req.url === '/v1/diagnostics') { try { return json(res, 200, await getDiagnostics(true)); } catch (error) { return json(res, 502, { status: 'failed', error: error.message }); } }
-  if (req.method === 'GET' && req.url === '/v1/capabilities') { try { const report = await getDiagnostics(); return json(res, 200, { ...report, routes: Object.fromEntries(['image', 'video', 'voice', 'audio'].map(kind => [kind, routeKind(kind, report)])), workflows: await getWorkflowStatuses(), queue: generationQueue.stats(), imageFallback: { enabled: process.env.AIVM_ENABLE_IMAGE_FALLBACK !== '0', productionQuality: false }, motionFallback: { enabled: process.env.AIVM_ENABLE_MOTION_FALLBACK !== '0', video: true }, freeOnlyImageWorkflow: !!comfyFor('image') && report.capabilities?.local_image !== 'unavailable' && await verifiedFreeImageWorkflow(workflowFor('image')) }); } catch (error) { return json(res, 502, { status: 'failed', error: error.message }); } }
+  if (req.method === 'GET' && req.url === '/v1/capabilities') { try { const report = await getDiagnostics(); return json(res, 200, { ...report, mock:process.env.AIVM_MOCK==='1', ...(await liveWorkflowReferenceCapabilities(workflowFor('image'),!!comfyFor('image')&&await verifiedFreeImageWorkflow(workflowFor('image')))), routes: Object.fromEntries(['image', 'video', 'voice', 'audio'].map(kind => [kind, routeKind(kind, report)])), workflows: await getWorkflowStatuses(), queue: generationQueue.stats(), imageFallback: { enabled: process.env.AIVM_ENABLE_IMAGE_FALLBACK !== '0', productionQuality: false }, motionFallback: { enabled: process.env.AIVM_ENABLE_MOTION_FALLBACK !== '0', video: true }, freeOnlyImageWorkflow: !!comfyFor('image') && report.capabilities?.local_image !== 'unavailable' && await verifiedFreeImageWorkflow(workflowFor('image')) }); } catch (error) { return json(res, 502, { status: 'failed', error: error.message }); } }
   const assetMatch = req.method === 'GET' && /^\/v1\/assets\/([a-f0-9-]+)$/.exec(req.url || '');
   if (assetMatch) {
     const file = generatedByJob.get(assetMatch[1]);

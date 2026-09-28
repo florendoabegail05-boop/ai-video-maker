@@ -7,7 +7,7 @@ const el=id=>document.getElementById(id);
 let activeProjectId='';
 function projects(){try{return loadProjects(localStorage);}catch{return [];}}
 function decorate(){decorateProjectButtons(el('projects'),projects());}
-function activeProject(){return chooseProject(projects(),{projectId:activeProjectId,name:el('name')?.value||'',prompt:(el('prompt')?.value||'').trim()});}
+function activeProject(){return chooseProject(projects(),{projectId:el('projects')?.dataset.activeProjectId||activeProjectId,name:el('name')?.value||'',prompt:(el('prompt')?.value||'').trim()});}
 function status(message){const node=el('publishingReadinessStatus');if(node)node.textContent=message;}
 function downloadJson(value,name){const blob=new Blob([JSON.stringify(value,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}
 

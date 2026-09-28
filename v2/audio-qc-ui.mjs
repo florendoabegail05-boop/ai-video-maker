@@ -2,28 +2,19 @@ import {loadProjects,saveProject,revise} from './core.mjs';
 import {setSceneAudio,sceneAudioSummary,generatedAudioAvailability} from './scene-audio.mjs';
 import {runTechnicalQc} from './technical-qc.mjs';
 import {bridgeCapabilities} from './local-provider.mjs';
+import {chooseProject} from './project-selection.mjs';
 
 const el=id=>document.getElementById(id);
 
 function activeProject(){
-  try{
-    const projects=loadProjects(localStorage);
-    const name=el('name')?.value||'';
-    const prompt=(el('prompt')?.value||'').trim();
-    const exact=projects.filter(p=>p.name===name&&p.prompt===prompt);
-    if(exact.length===1)return exact[0];
-    const byPrompt=projects.filter(p=>p.prompt===prompt);
-    if(byPrompt.length===1)return byPrompt[0];
-    const byName=projects.filter(p=>p.name===name);
-    return byName.length===1?byName[0]:null;
-  }catch{return null;}
+  try{return chooseProject(loadProjects(localStorage),{projectId:el('projects')?.dataset.activeProjectId||'',name:el('name')?.value||'',prompt:el('prompt')?.value||''});}catch{return null;}
 }
 
 function status(message){if(el('audioPlanStatus'))el('audioPlanStatus').textContent=message;}
 function button(label,handler,secondary=true){const b=document.createElement('button');b.type='button';b.textContent=label;if(secondary)b.className='secondary';b.addEventListener('click',handler);return b;}
 
 function reselect(project){
-  const match=[...(el('projects')?.querySelectorAll('button')||[])].find(node=>node.textContent===project.name);
+  const match=[...(el('projects')?.querySelectorAll('button')||[])].find(node=>node.dataset.projectId===project.id);
   if(match){match.click();return true;}
   return false;
 }
@@ -71,7 +62,7 @@ function renderAudioPlanner(project){
 function refreshQcGate(project){
   const assemble=el('assemble');const gate=el('qcGateStatus');if(!assemble||!gate)return;
   if(!project){assemble.disabled=true;gate.textContent='Final assembly is disabled until a project is selected.';return;}
-  const report=runTechnicalQc(project,{targetAspect:'9:16'});
+  const report=runTechnicalQc(project,{targetAspect:'9:16',requireLocalClips:true});
   assemble.disabled=!report.passed;
   gate.textContent=report.passed
     ?`Technical QC gate passed (${report.summary.warnings} warning${report.summary.warnings===1?'':'s'}). Final assembly remains subject to bridge/render checks.`

@@ -141,3 +141,9 @@ Browser checks also required:
 ## Safety reminder
 
 Do not enable paid providers, large model downloads, remote media uploads, admin installs, force-pushes, or destructive file changes without owner approval. Preserve V1/main and all existing media/assets.
+
+## 2026-09-28 local integration result
+See the latest Windows/browser verification entry in WORK_CODEX_HANDOFF.md for exact evidence (152/152 tests and six smoke suites). The live capability endpoint is wired; unsupported reference forwarding is disabled and tested. Actual fallback adapter shapes, duplicate-project selection, QC gating, browser blob-media policy, unknown FPS/audio facts, approved/imported preservation, and compiled-prompt reorder invalidation are fixed. Real 1080x1920 caption/audio output agrees with FFprobe. Actual ComfyUI node wiring is blocked by the absence of a configured local workflow/model. No V1/main or original media changes.
+
+## 2026-09-28 reconciliation status
+After the owner paused concurrent writes, remote e704ace and verified local e0328d3 were merged without conflicts or discarded changes. The combined suite passes **172/172 tests with zero skips**, plus all six smoke suites. Both parent histories and every newer remote file are retained. See the reconciliation entry in WORK_CODEX_HANDOFF.md; optional new planner UI integrations remain future work.

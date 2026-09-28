@@ -1,6 +1,7 @@
+import {reusableAsset} from './core.mjs';
 function issue(code,message,severity='error',sceneId=null,assetId=null){return{code,message,severity,sceneId,assetId};}
 
-export function runTechnicalQc(project,{targetAspect='9:16'}={}){
+export function runTechnicalQc(project,{targetAspect='9:16',requireLocalClips=false}={}){
   const issues=[];
   const scenes=Array.isArray(project?.scenes)?project.scenes:[];
   const assets=Array.isArray(project?.assets)?project.assets:[];
@@ -13,9 +14,11 @@ export function runTechnicalQc(project,{targetAspect='9:16'}={}){
   for(const scene of scenes){
     const sceneAssets=assets.filter(a=>a.sceneId===scene.id&&a.status!=='needs regeneration');
     const videos=sceneAssets.filter(a=>a.kind==='video'&&a.hasFile!==false);
-    if(!videos.length)issues.push(issue('NO_VIDEO',`Scene ${scene.order} has no usable video clip.`,'warning',scene.id));
+    if(!videos.length)issues.push(issue('NO_VIDEO',`Scene ${scene.order} has no usable video clip.`,'error',scene.id));
+    const selected=reusableAsset({...project,scenes,assets},scene.id,'video')||videos.filter(a=>a.locked||a.status==='kept').at(-1)||videos.at(-1);
+    if(requireLocalClips&&!reusableAsset({...project,scenes,assets},scene.id,'video'))issues.push(issue('NO_LOCAL_CLIP',`Scene ${scene.order} needs an eligible bridge-backed clip.`,'error',scene.id));
     for(const video of videos){
-      if(Number.isFinite(video.duration)&&video.duration<scene.duration-0.05)issues.push(issue('SHORT_VIDEO',`Scene ${scene.order} clip ${video.name||video.id} is shorter than the scene duration.`,'error',scene.id,video.id));
+      if(Number.isFinite(video.duration)&&video.duration<scene.duration-0.05)issues.push(issue('SHORT_VIDEO',`Scene ${scene.order} clip ${video.name||video.id} is shorter than the scene duration.`,video===selected?'error':'warning',scene.id,video.id));
       if(video.width&&video.height){
         const ratio=video.width/video.height;
         const expected=targetAspect==='16:9'?16/9:targetAspect==='1:1'?1:9/16;

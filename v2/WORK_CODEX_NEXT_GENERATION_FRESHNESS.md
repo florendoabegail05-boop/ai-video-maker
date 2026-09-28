@@ -38,3 +38,6 @@ Then run the complete V2 suite required by the main handoff.
 Scene reordering changes continuity context but is **not yet automatically invalidating generated visuals**. Inspect the real Director/continuity behavior before deciding the smallest safe invalidation scope for move operations. Prefer invalidating only scenes whose compiled generation prompt actually changes; do not blindly invalidate the whole project unless necessary.
 
 Do not weaken lock semantics, delete media, or invalidate imported files merely to make tests pass.
+
+## Local verification update — 2026-09-28
+The earlier reorder follow-up is now resolved in core: compare actual compileScenePrompt output before/after editing/moving and invalidate exactly the changed scene set. A six-scene regression proves unaffected prompts/assets remain reusable; browser reorder also preserves kept/locked/imported records. No-op prompt edits preserve assets. Automatic invalidation now preserves kept (approved) media as well as locked/imported media. Character/World/Visual Rules and visual-reference mark/clear were browser-tested; originals remain byte-identical. Full expanded suite: 152 passed, zero failed/skipped. The additive edit-impact preview module remains a separate, not-yet-wired UI foundation.

@@ -30,3 +30,15 @@ export function referencePayloadAllowed(capabilities={},references={}){
     world:capabilities.supportsWorldReferences===true?Array.isArray(references.world)?references.world:[]:[]
   };
 }
+
+// A marker is a declaration, not a tested node mapping. Until an actual local
+// workflow is inspected, report the declaration but never enable path forwarding.
+export async function liveWorkflowReferenceCapabilities(file='', verified=false){
+  const declared=await workflowReferenceCapabilities(verified?file:'');
+  return {declaredCharacterReferences:declared.supportsCharacterReferences,
+    declaredWorldReferences:declared.supportsWorldReferences,
+    workflowReadable:declared.workflowReadable,
+    supportsCharacterReferences:false,supportsWorldReferences:false,
+    referenceForwardingEnabled:false,
+    referenceReason:verified?'Reference node mapping has not been locally verified.':'No verified local image workflow is configured.'};
+}

@@ -8,6 +8,7 @@ export function decorateProjectButtons(container,projects=[]){
   const ordered=sortedProjects(projects);
   for(let i=0;i<buttons.length;i++){
     const project=ordered[i];
+    if(buttons[i].dataset.projectId)continue;
     if(project?.id)buttons[i].dataset.projectId=project.id;
     else delete buttons[i].dataset.projectId;
   }

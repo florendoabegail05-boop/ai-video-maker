@@ -1,6 +1,7 @@
 import {renderSignature} from './render-signature.mjs';
 
-function number(value){const n=Number(value);return Number.isFinite(n)?n:null;}
+function number(value){if(value===null||value===undefined||value==='')return null;const n=Number(value);return Number.isFinite(n)?n:null;}
+function frameRate(value){if(typeof value==='string'&&/^\d+\/\d+$/.test(value)){const [n,d]=value.split('/').map(Number);return d?n/d:null;}return number(value);}
 function clean(value,max=240){return String(value||'').replace(/\s+/g,' ').trim().slice(0,max);}
 
 export function expectedOutput(project,{aspect='9:16',width=1080,height=1920,fps=30}={}){
@@ -15,11 +16,11 @@ export function validateFinalOutput(project,media,{aspect='9:16',width=1080,heig
   const actual={
     width:number(video.width),
     height:number(video.height),
-    fps:number(video.fps||media?.fps),
+    fps:frameRate(video.fps??media?.fps),
     duration:number(media?.duration),
     bytes:number(media?.bytes),
     hasVideo:!!media?.video,
-    hasAudio:!!media?.audio
+    hasAudio:media?.audio==null?null:!!media.audio
   };
   if(!actual.hasVideo)issues.push({code:'NO_VIDEO_STREAM',severity:'error',message:'Final output has no verified video stream.'});
   if(actual.width!==expected.width||actual.height!==expected.height)issues.push({code:'OUTPUT_DIMENSIONS',severity:'error',message:`Expected ${expected.width}×${expected.height}, got ${actual.width||'?'}×${actual.height||'?'}.`});
@@ -59,7 +60,7 @@ export function publishingVerificationPatch(manifest){
       height:manifest.actual?.height??null,
       duration:manifest.actual?.duration??null,
       fps:manifest.actual?.fps??null,
-      hasAudio:manifest.actual?.hasAudio===true,
+      hasAudio:manifest.actual?.hasAudio??null,
       issues:(manifest.issues||[]).map(item=>({code:item.code,severity:item.severity,message:item.message}))
     }
   };

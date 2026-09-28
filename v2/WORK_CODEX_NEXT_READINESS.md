@@ -43,3 +43,6 @@ Then run the complete suite already listed in `WORK_CODEX_DELTA.md`.
 ## Safety / product rule
 
 Human review cannot be inferred from metadata. Do not add a synthetic 'passed human review' flag unless the owner explicitly checks/approves it in the UI. No automatic upload/publish action is authorized by this dashboard.
+
+## Local verification update — 2026-09-28
+Browser readiness was exercised with duplicate-named projects, missing/stale clips, fresh final verification, and stale caption/audio/reorder inputs. Technical QC blocks unusable clips, including direct assembly via Create draft. Fresh deterministic readiness still requires owner visual/audio and rights/platform review. Full expanded suite: 152 passed, zero failed/skipped; six smoke scripts passed. See WORK_CODEX_HANDOFF.md for render facts and remaining workflow blockers.
