@@ -2,25 +2,64 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {oneClickStatusView} from './one-click-status-view.mjs';
 import {createOneClickSession} from './one-click-orchestrator.mjs';
+import {machineFinalMediaFacts} from './final-media-facts.mjs';
 
-function project(){return {id:'p1',revision:1,prompt:'demo',style:'custom',hardwareMode:'light',scenes:[{id:'s1',order:1,duration:5,prompt:'scene one',assetIds:[]}],assets:[]};}
+function project(){return {id:'p1',revision:1,prompt:'demo',style:'custom',hardwareMode:'light',bible:{character:'',world:'',visualRules:''},scenes:[{id:'s1',order:1,duration:5,prompt:'scene one',caption:'',assetIds:[]}],assets:[]};}
 function report(){return {imageFallback:{enabled:true},motionFallback:{enabled:true},tools:{ffmpeg:{available:true},ffprobe:{available:true}}};}
+const creation={wantAudio:false,wantMotion:false,wantCaptions:false};
+
+function completedSession(p,r){
+  const session=createOneClickSession(p,r,{creation});
+  return {
+    ...session,
+    ledger:{
+      ...session.ledger,
+      entries:session.ledger.entries.map(entry=>entry.state==='OPTIONAL'?entry:{...entry,state:'DONE',stale:false})
+    }
+  };
+}
 
 test('status view starts with creation progress and no publish authority',()=>{
-  const p=project(),r=report(),s=createOneClickSession(p,r);
-  const view=oneClickStatusView(p,r,s);
+  const p=project(),r=report(),s=createOneClickSession(p,r,{creation});
+  const view=oneClickStatusView(p,r,s,{creation});
   assert.equal(view.kind,'aivm-v2-one-click-status-view');
   assert.equal(view.progress,0);
   assert.equal(view.publishAuthorized,false);
   assert.equal(view.automaticPublishingAllowed,false);
   assert.equal(view.sections[0].state,'DONE');
+  assert.equal(view.creationProgress.actionable,s.ledger.entries.filter(item=>item.state!=='OPTIONAL').length);
 });
 
 test('changed project requires replan instead of continuing stale session',()=>{
-  const p=project(),r=report(),s=createOneClickSession(p,r);
+  const p=project(),r=report(),s=createOneClickSession(p,r,{creation});
   const changed={...p,revision:2};
-  const view=oneClickStatusView(changed,r,s);
+  const view=oneClickStatusView(changed,r,s,{creation});
   assert.equal(view.state,'REPLAN REQUIRED');
   assert.equal(view.nextAction,'REPLAN');
+  assert.equal(view.publishAuthorized,false);
+});
+
+test('completed creation with missing trusted final facts asks for verification, not owner approval',()=>{
+  const p=project(),r=report(),s=completedSession(p,r);
+  const view=oneClickStatusView(p,r,s,{creation});
+  assert.equal(view.state,'TECHNICAL VERIFICATION REQUIRED');
+  assert.equal(view.nextAction,'RUN_FINAL_VERIFICATION');
+  assert.equal(view.sections.find(item=>item.id==='verify').state,'REQUIRED');
+  assert.equal(view.sections.find(item=>item.id==='review').state,'WAITING');
+  assert.equal(view.ownerActionRequired,false);
+  assert.equal(view.manualPublishEligible,false);
+});
+
+test('technical pass advances to rights review using current project provenance',()=>{
+  const p=project(),r=report(),s=completedSession(p,r);
+  const facts=[machineFinalMediaFacts(p,{width:1080,height:1920,duration:5},'ffprobe')];
+  const view=oneClickStatusView(p,r,s,{creation,factSets:facts});
+  assert.equal(view.state,'RIGHTS REVIEW REQUIRED');
+  assert.equal(view.nextAction,'REVIEW_RIGHTS');
+  assert.equal(view.sections.find(item=>item.id==='verify').state,'DONE');
+  assert.equal(view.sections.find(item=>item.id==='review').state,'REQUIRED');
+  assert.equal(view.ownerActionRequired,true);
+  assert.equal(view.rightsSummary.needingReview,0);
+  assert.equal(view.rightsSummary.assets,0);
   assert.equal(view.publishAuthorized,false);
 });
