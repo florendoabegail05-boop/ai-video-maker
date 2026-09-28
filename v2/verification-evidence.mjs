@@ -50,10 +50,12 @@ export function chooseBestTechnicalEvidence(project,...facts){
   const current=facts.filter(Boolean).map(item=>evidenceForCurrentRender(project,item));
   if(!current.length)return evidenceForCurrentRender(project,makeTechnicalEvidence(null));
   current.sort((a,b)=>{
-    const aExplicit=a.value===null?0:1,bExplicit=b.value===null?0:1;
-    if(aExplicit!==bExplicit)return bExplicit-aExplicit;
+    const aCurrent=a.stale===true?0:1,bCurrent=b.stale===true?0:1;
+    if(aCurrent!==bCurrent)return bCurrent-aCurrent;
     const aTrusted=a.trusted?1:0,bTrusted=b.trusted?1:0;
     if(aTrusted!==bTrusted)return bTrusted-aTrusted;
+    const aExplicit=a.value===null?0:1,bExplicit=b.value===null?0:1;
+    if(aExplicit!==bExplicit)return bExplicit-aExplicit;
     const sourceDiff=(SOURCE_RANK[b.source]||0)-(SOURCE_RANK[a.source]||0);
     if(sourceDiff)return sourceDiff;
     return String(b.observedAt||'').localeCompare(String(a.observedAt||''));
@@ -78,6 +80,6 @@ export function technicalFactSummary(project,facts={}){
     projectId:project?.id||null,
     renderSignature:renderSignature(project),
     facts:output,
-    note:'Unknown stays unknown. Browser evidence is limited to fields the browser can directly establish. Stream, codec and FPS claims require bridge/FFprobe-class evidence.'
+    note:'Unknown stays unknown. Current trusted evidence outranks unsupported explicit claims. Browser evidence is limited to fields the browser can directly establish. Stream, codec and FPS claims require bridge/FFprobe-class evidence.'
   };
 }
