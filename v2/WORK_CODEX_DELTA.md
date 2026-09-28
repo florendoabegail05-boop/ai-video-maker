@@ -74,6 +74,13 @@ These changes were made from ChatGPT chat after the last known local Work/Codex 
    - Unsupported or unverified routes do not appear as available.
    - This is a discovery layer only; it does not auto-download models or enable paid providers.
 
+15. **Live recovery + verified-adapter UI**
+   - `recovery-store.mjs` persists bounded metadata-only recovery snapshots under a dedicated localStorage key and never duplicates media bytes.
+   - `recovery-capability-ui.mjs` exposes manual recovery snapshots, safe pre-restore snapshots, project-ID-safe restore, snapshot deletion, and live FREE ONLY adapter registry display.
+   - Restoring a snapshot first captures the current project state as `Before recovery restore` so the restore itself is reversible at the metadata level.
+   - `index.html` now loads the recovery/capability module and exposes `Recovery & Version Safety` plus `FREE ONLY Adapter Registry` panels.
+   - Adapter display is based only on the live bridge capability response and never labels unsupported routes as verified.
+
 ## Tests added in chat
 
 - `v2/continuity.test.mjs`
@@ -84,6 +91,7 @@ These changes were made from ChatGPT chat after the last known local Work/Codex 
 - `v2/scene-audio.test.mjs`
 - `v2/project-selection.test.mjs`
 - `v2/recovery.test.mjs`
+- `v2/recovery-store.test.mjs`
 - `v2/final-output.test.mjs`
 - `v2/adapter-registry.test.mjs`
 - `local-bridge/workflow-capabilities.test.mjs`
@@ -93,18 +101,20 @@ These changes were made from ChatGPT chat after the last known local Work/Codex 
 Run at minimum:
 
 ```powershell
-node --test v2/director.test.mjs v2/provider-router.test.mjs v2/capabilities.test.mjs v2/references.test.mjs v2/continuity.test.mjs v2/media-adapters.test.mjs v2/technical-qc.test.mjs v2/prompt-integration.test.mjs v2/export-presets.test.mjs v2/scene-audio.test.mjs v2/project-selection.test.mjs v2/recovery.test.mjs v2/final-output.test.mjs v2/adapter-registry.test.mjs v2/core.test.mjs v2/local-provider.test.mjs local-bridge/workflow-capabilities.test.mjs
+node --test v2/director.test.mjs v2/provider-router.test.mjs v2/capabilities.test.mjs v2/references.test.mjs v2/continuity.test.mjs v2/media-adapters.test.mjs v2/technical-qc.test.mjs v2/prompt-integration.test.mjs v2/export-presets.test.mjs v2/scene-audio.test.mjs v2/project-selection.test.mjs v2/recovery.test.mjs v2/recovery-store.test.mjs v2/final-output.test.mjs v2/adapter-registry.test.mjs v2/core.test.mjs v2/local-provider.test.mjs local-bridge/workflow-capabilities.test.mjs
 ```
 
 Then run the full V2/bridge/render/smoke suite from Priority 0 in the main handoff.
 
 Browser checks also required:
-- load `v2/index.html` through the supported local launcher and confirm `studio.mjs`, `studio-enhancements.mjs`, and `audio-qc-ui.mjs` load without console errors;
-- create two projects with the same display name and prove Character/World reference changes, QC, and audio-plan edits stay on the selected project ID;
+- load `v2/index.html` through the supported local launcher and confirm all four browser modules load without console errors: `studio.mjs`, `studio-enhancements.mjs`, `audio-qc-ui.mjs`, `recovery-capability-ui.mjs`;
+- create two projects with the same display name and prove Character/World reference changes, QC, audio-plan edits, recovery capture and recovery restore all stay on the selected project ID;
+- create a recovery snapshot, modify scene metadata, restore the snapshot, confirm a pre-restore safety snapshot is created and no media bytes are duplicated or deleted;
+- reload the page and verify recovery history persists without inflating media storage;
+- run `Check verified adapters` with the bridge online and compare every displayed adapter against `/v1/capabilities`; unsupported voice/music/SFX/lip-sync/upscale routes must remain absent;
 - mark an image Character Reference, change it to World Reference, then clear it; original bytes must remain previewable/exportable;
 - confirm Assemble final MP4 is blocked only by real deterministic QC errors and becomes available after valid clips satisfy the gate;
-- confirm dialogue/audio-cue metadata survives save, reselect and page reload;
-- query FREE ONLY audio routes and confirm unverified voice/music/SFX/lip-sync are never presented as available.
+- confirm dialogue/audio-cue metadata survives save, reselect and page reload.
 
 ## Work/Codex tasks that need the real laptop/bridge
 
@@ -114,7 +124,7 @@ Browser checks also required:
 4. Add integration tests proving unsupported workflows receive zero reference paths.
 5. Re-run the verified 1080p FFmpeg render route and confirm no regression.
 6. Feed real `ffprobe`/bridge media metadata into `final-output.mjs`; only then may the publishing package record `finalVideoVerified: true`.
-7. Decide where recovery snapshots should be persisted in-browser after checking storage limits and existing IndexedDB/localStorage behavior. Do not duplicate large media bytes in snapshots.
+7. Verify localStorage snapshot size remains reasonable on real projects. If metadata growth is too large, move recovery metadata to IndexedDB, but do not duplicate media bytes.
 8. Run `adapter-registry.mjs` against the live capability response and fix any shape mismatch; never mark a route verified just to make the UI look complete.
 9. Only after real render tests, consider exposing 16:9 / 1:1 presets or further export options.
 10. Inspect actual hardware before enabling any local motion/voice/lip-sync model; do not download multi-GB models without owner approval.
