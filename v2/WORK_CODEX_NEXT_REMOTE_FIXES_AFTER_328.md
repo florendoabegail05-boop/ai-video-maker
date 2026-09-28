@@ -64,7 +64,17 @@ These known-invalid facts must produce output readiness `BLOCKED`, not `TECHNICA
 
 Release signatures now include each asset's normalized provenance origin, rights status, source label, credit, and provenance note. A source-label, origin, rights, credit, or provenance-note change after owner approval must make both legacy and verified release approvals stale even when the render itself has not changed.
 
-`provenanceAudit` keeps the normalized source label and internal provenance note so release signing can see them. The portable provenance summary may expose the source label but must continue excluding local source paths and the internal provenance note.
+`provenanceAudit` keeps the normalized source label and internal provenance note so release signing can see them.
+
+### Portable provenance stays useful without leaking local path-like labels
+- `v2/asset-provenance.mjs`
+- `v2/asset-provenance.test.mjs`
+- `v2/publishing.mjs`
+- `v2/publishing.test.mjs`
+
+The portable provenance summary now preserves safe human-readable source labels and credits, but local path-like source labels (for example `C:\\Users\\...`, UNC paths, `file:` paths, or absolute local paths) are replaced with `null`. Internal provenance notes remain excluded from portable output.
+
+`makePublishingPackage()` now includes this portable provenance summary and adds a clear warning when asset rights/source review is incomplete. The package must continue excluding project prompts, local source paths, private provenance notes, bridge/output paths, media bytes, and automatic publish authority.
 
 ## Required focused rerun after reconciliation
 
@@ -82,7 +92,8 @@ node --test \
   v2/one-click-retry-dispatch.test.mjs \
   v2/asset-provenance.test.mjs \
   v2/release-approval.test.mjs \
-  v2/verified-release-approval.test.mjs
+  v2/verified-release-approval.test.mjs \
+  v2/publishing.test.mjs
 ```
 
 Then rerun the full regression:
