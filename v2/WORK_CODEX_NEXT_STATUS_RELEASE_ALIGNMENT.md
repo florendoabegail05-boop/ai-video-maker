@@ -3,7 +3,9 @@
 Pull the latest `v2-clean-studio` before editing. Do not touch `main`/V1. Preserve locked/imported media and FREE ONLY behavior.
 
 ## Focus
-Verify the latest presentation/status integration around:
+Verify the latest execution/status/release integration around:
+- `v2/draft-execution-ledger.mjs`
+- `v2/draft-execution-ledger.test.mjs`
 - `v2/one-click-status-view.mjs`
 - `v2/one-click-status-view.test.mjs`
 - `v2/one-click-orchestrator.mjs`
@@ -16,7 +18,7 @@ Verify the latest presentation/status integration around:
 Run the focused tests first:
 
 ```bash
-node --test v2/one-click-orchestrator.test.mjs v2/one-click-status-view.test.mjs v2/current-release-context.test.mjs v2/output-readiness-summary.test.mjs v2/final-verification-gate.test.mjs
+node --test v2/draft-execution-ledger.test.mjs v2/one-click-orchestrator.test.mjs v2/one-click-status-view.test.mjs v2/current-release-context.test.mjs v2/output-readiness-summary.test.mjs v2/final-verification-gate.test.mjs
 ```
 
 Then run the full V2 + bridge regression:
@@ -29,15 +31,16 @@ Then rerun the existing browser/smoke and real FFmpeg/FFprobe verification check
 
 ## Semantics to verify
 1. OPTIONAL jobs do not depress the displayed creation progress denominator.
-2. `execution.progress.complete` must never be treated as successful creation by itself. If scheduler state is `REVIEW_BLOCKERS` or `OWNER_OR_MANUAL_INPUT_REQUIRED`, `oneClickCompletionStatus` must keep `readiness:null` and must not fall through to technical/release readiness.
-3. A ledger containing terminal `FAILED`/`BLOCKED`/`MANUAL` work cannot produce rights review, owner approval, or manual-publish eligibility until those creation states are actually resolved.
-4. After creation successfully reaches `VERIFY_OUTPUT` with missing trusted final facts, the UI says `TECHNICAL VERIFICATION REQUIRED` / `RUN_FINAL_VERIFICATION`, not owner approval.
-5. Known invalid final output remains `BLOCKED`.
-6. A technical pass with incomplete project provenance advances to `RIGHTS REVIEW REQUIRED`.
-7. Owner approval is accepted only through a complete, fresh `aivm-v2-owner-release-approval` record; arbitrary booleans must not bypass it.
-8. If release inputs change after approval, status must return to owner approval required and clearly show stale approval.
-9. Even when `manualPublishEligible === true`, `publishAuthorized` and `automaticPublishingAllowed` remain false.
-10. No local file paths or private media details are exposed in the status model.
+2. `draftExecutionSummary.complete` / `settled` means only that required jobs are no longer pending/running. It must NOT imply success.
+3. `draftExecutionSummary.successful` / `readyForVerification` is true only when every required job is current and `DONE` or `SKIPPED`.
+4. A ledger containing terminal `FAILED`/`BLOCKED`/`MANUAL` or stale required work cannot reach `VERIFY_OUTPUT`, rights review, owner approval, or manual-publish eligibility.
+5. After creation successfully reaches `VERIFY_OUTPUT` with missing trusted final facts, the UI says `TECHNICAL VERIFICATION REQUIRED` / `RUN_FINAL_VERIFICATION`, not owner approval.
+6. Known invalid final output remains `BLOCKED`.
+7. A technical pass with incomplete project provenance advances to `RIGHTS REVIEW REQUIRED`.
+8. Owner approval is accepted only through a complete, fresh `aivm-v2-owner-release-approval` record; arbitrary booleans must not bypass it.
+9. If release inputs change after approval, status must return to owner approval required and clearly show stale approval.
+10. Even when `manualPublishEligible === true`, `publishAuthorized` and `automaticPublishingAllowed` remain false.
+11. No local file paths or private media details are exposed in the status model.
 
 ## Minimal integration target
 If all focused tests and regression checks pass, wire the status model into the Studio's read-only one-click status panel using the four sections:
