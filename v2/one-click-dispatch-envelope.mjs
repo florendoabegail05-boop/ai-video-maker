@@ -14,7 +14,7 @@ function guardOptions(job){
   return {allowUnrelatedRevision:false,requireRenderMatch:false};
 }
 
-function payloadForJob(job){
+function payloadForJob(job,generationGuard=null){
   const payload={jobId:job.id,type:job.type,sceneId:job.sceneId||null,route:job.route||null};
   if(job.type==='image'){
     payload.prompt=clean(job.prompt,4000);
@@ -23,6 +23,7 @@ function payloadForJob(job){
     payload.worldReferenceIds=[...(job.worldReferenceIds||[])];
   }else if(job.type==='motion'){
     payload.directorBrief=clean(job.directorBrief,8000);
+    payload.sourceAssetId=generationGuard?.parentAssetId||null;
   }
   return payload;
 }
@@ -44,6 +45,10 @@ export function prepareNextOneClickDispatch(project,report,session,options={}){
   const generationGuard=['image','motion'].includes(fullJob.type)
     ?captureGenerationInputGuard(project,fullJob.sceneId,{type:fullJob.type,route:fullJob.route||null})
     :null;
+  if(fullJob.type==='motion'&&!generationGuard?.parentAssetId){
+    return {prepared:false,reason:'motion-source-image-missing',nextAction:'OWNER_OR_MANUAL_INPUT_REQUIRED',jobId:fullJob.id,session};
+  }
+  const payload=payloadForJob(fullJob,generationGuard);
   const ledger=updateDraftJobState(session.ledger,fullJob.id,'RUNNING',{message:'Prepared for guarded FREE ONLY dispatch.'});
   const preparedSession={...session,started:true,ledger};
   return {
@@ -63,7 +68,7 @@ export function prepareNextOneClickDispatch(project,report,session,options={}){
       guard,
       generationGuard,
       guardOptions:guardOptions(fullJob),
-      payload:payloadForJob(fullJob),
+      payload,
       dispatchable:true,
       paidProviderAllowed:false,
       externalUploadAllowed:false,
@@ -86,7 +91,15 @@ export function validateOneClickDispatch(project,envelope){
   const guard=validateOperationGuard(project,envelope.guard,envelope.guardOptions||{});
   if(!guard.ok)return {ok:false,reason:`stale-dispatch:${guard.reason}`};
   if(['image','motion'].includes(envelope.jobType)){
-    const generation=validateGenerationInputGuard(project,envelope.generationGuard,{route:envelope.payload?.route||null});
+    if(envelope.jobType==='motion'){
+      const sourceAssetId=envelope.payload?.sourceAssetId||null;
+      if(!sourceAssetId)return {ok:false,reason:'motion-source-image-missing'};
+      if(sourceAssetId!==envelope.generationGuard?.parentAssetId)return {ok:false,reason:'motion-source-guard-mismatch'};
+    }
+    const generation=validateGenerationInputGuard(project,envelope.generationGuard,{
+      route:envelope.payload?.route||null,
+      parentAssetId:envelope.jobType==='motion'?envelope.payload?.sourceAssetId||null:null
+    });
     if(!generation.ok)return {ok:false,reason:`stale-generation:${generation.reason}`};
   }
   return {ok:true,reason:'current-free-only-guarded'};
