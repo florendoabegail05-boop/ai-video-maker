@@ -5,6 +5,7 @@ import {inspectOneClickSession} from './one-click-orchestrator.mjs';
 
 function clean(value,max=500){return String(value||'').replace(/\s+/g,' ').trim().slice(0,max);}
 function resultOk(result){return result?.ok===true||result?.success===true||result?.status==='ok'||result?.status==='success';}
+function staleReason(reason=''){return String(reason).startsWith('stale-dispatch:')||String(reason).startsWith('stale-generation:');}
 
 export function processOneClickDispatchResult(project,report,session,envelope,result={},options={}){
   if(!session||session.kind!=='aivm-v2-one-click-session')throw Error('One-click session is required.');
@@ -21,7 +22,7 @@ export function processOneClickDispatchResult(project,report,session,envelope,re
     return {
       accepted:false,
       reason:dispatchCheck.reason,
-      nextAction:dispatchCheck.reason.startsWith('stale-dispatch:')?'REPLAN':'REVIEW_BLOCKERS',
+      nextAction:staleReason(dispatchCheck.reason)?'REPLAN':'REVIEW_BLOCKERS',
       session,
       publishAuthorized:false,
       note:'Rejected dispatch results do not mutate the project, ledger, media bytes or files.'
