@@ -59,7 +59,7 @@ test('package records approved clip selection and audio without local paths or f
 test('publishing package carries portable rights status and credits but not private provenance notes or path-like labels',()=>{
   let project=planScenes(createProject('PRIVATE SOURCE PROMPT','Rights package'),5);
   const scene=project.scenes[0].id;
-  project=addAsset(project,scene,{kind:'video',name:'C:\\Users\\Abe\\Private\\licensed.mp4',sourcePath:'C:\\private\\licensed.mp4',duration:5,provider:'local-import'});
+  project=addAsset(project,scene,{kind:'video',name:'C:\\Users\\Abe\\Private\\licensed.mp4',sourcePath:'C:\\private\\licensed.mp4',duration:5,provider:'C:\\Tools\\private-generator.exe'});
   const id=project.assets.at(-1).id;
   project=updateAsset(project,id,'keep');
   project=setAssetProvenance(project,id,{origin:'licensed',rightsStatus:'license-confirmed',sourceLabel:'C:\\Users\\Abe\\license.txt',credit:'Creator Name',note:'PRIVATE LICENSE NOTE'});
@@ -73,7 +73,8 @@ test('publishing package carries portable rights status and credits but not priv
   assert.equal(item.sourceLabel,null);
   assert.equal(item.name,'licensed.mp4');
   assert.equal(packagedAsset.name,'licensed.mp4');
-  assert.doesNotMatch(JSON.stringify(result),/PRIVATE SOURCE PROMPT|PRIVATE LICENSE NOTE|Users\\Abe|sourcePath/);
+  assert.equal(packagedAsset.provider,null);
+  assert.doesNotMatch(JSON.stringify(result),/PRIVATE SOURCE PROMPT|PRIVATE LICENSE NOTE|Users\\Abe|Tools\\private-generator|sourcePath/);
 });
 
 test('passed final-output manifest is preserved when publishing details change and exported without local paths', () => {
@@ -88,8 +89,20 @@ test('passed final-output manifest is preserved when publishing details change a
   assert.equal(pack.finalVideoVerified,true);
   assert.equal(pack.finalOutput.actual.width,1080);
   assert.equal(pack.finalOutput.actual.height,1920);
+  assert.equal(pack.finalOutput.provider,'browser-file-metadata');
   assert.match(pack.warnings.join(' '),/deterministic media facts were verified/);
   assert.doesNotMatch(JSON.stringify(pack),/PRIVATE FINAL PROMPT|sourcePath|bridgeUrl|outputPath/);
+});
+
+test('setFinalVerification strips path-like provider labels even from an otherwise valid manifest',()=>{
+  let project=planScenes(createProject('PRIVATE VERIFY PROMPT','Verified video'),5);
+  const manifest=makeFinalOutputManifest(project,{video:{width:1080,height:1920},duration:5,bytes:2_000_000,provider:'ffmpeg'});
+  assert.equal(manifest.verified,true);
+  project=setFinalVerification(project,{...manifest,provider:'C:\\Users\\Abe\\ffmpeg.exe'});
+  assert.equal(project.publishing.finalVerification.provider,null);
+  const pack=makePublishingPackage(project);
+  assert.equal(pack.finalOutput.provider,null);
+  assert.doesNotMatch(JSON.stringify(pack),/Users\\Abe|PRIVATE VERIFY PROMPT/);
 });
 
 test('failed, wrong-project or malformed verification cannot be saved as verified',()=>{
