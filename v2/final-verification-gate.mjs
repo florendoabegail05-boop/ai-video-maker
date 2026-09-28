@@ -38,8 +38,13 @@ export function finalVerificationGate(project,factSets=[],{
   }else add('dimensions','PASS',`Rendered dimensions match ${expectedWidth}×${expectedHeight}.`,{reason:'dimensions-match',actualWidth:widthActual,actualHeight:heightActual});
 
   const duration=reconciliation.selected.duration;
-  if(duration?.trusted===true&&duration?.stale!==true&&duration?.value===true){
-    add('duration','PASS','Rendered duration is available from current trusted evidence.',{reason:'duration-known',actual:duration.details?.actual??null,source:duration.source||'unknown'});
+  const durationTrusted=duration?.trusted===true&&duration?.stale!==true&&duration?.value===true;
+  const durationActual=duration?.details?.actual??null;
+  const durationNumber=durationActual===null||durationActual===undefined||durationActual===''?null:Number(durationActual);
+  if(durationTrusted&&Number.isFinite(durationNumber)&&durationNumber>0){
+    add('duration','PASS','Rendered duration is available from current trusted evidence.',{reason:'duration-known',actual:durationNumber,source:duration.source||'unknown'});
+  }else if(durationTrusted){
+    add('duration','BLOCKED','Rendered duration must be greater than zero.',{reason:'duration-invalid',actual:Number.isFinite(durationNumber)?durationNumber:null,source:duration.source||'unknown'});
   }else add('duration','BLOCKED','Rendered duration is not verified by current trusted evidence.',{reason:'duration-unknown'});
 
   const audio=evidenceState(reconciliation,'audioStream');
