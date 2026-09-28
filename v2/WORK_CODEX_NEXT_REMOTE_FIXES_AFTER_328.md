@@ -90,6 +90,17 @@ Internal provenance notes remain excluded. The package must continue excluding p
 
 `makeFinalOutputManifest()` now keeps simple provider labels such as `ffmpeg` or `bridge-local`, but drops provider/encoder values that look like local executable paths, absolute paths or URL-like values. This keeps the manifest's existing promise that local paths and bridge URLs are excluded.
 
+### Saved final-verification snapshots are whitelist-only portable metadata
+- `v2/publishing.mjs`
+- `v2/publishing.test.mjs`
+- `v2/publishing-portability-regression.test.mjs`
+
+`setFinalVerification()` no longer copies arbitrary nested `expected`, `actual`, issue-message, timestamp or provider data from a caller-supplied verification object. It stores only the known portable technical fields, normalizes the timestamp, replaces issue messages with code-based safe text, caps issue count, and sanitizes provider labels.
+
+`makePublishingPackage()` and `finalVerificationStatus()` also re-sanitize already-saved verification snapshots on read/export. This matters for older imported backups: even if a historical snapshot contains a local path/URL/private nested field, a current portable publishing package must not echo it merely because the render signature is still fresh.
+
+Do not weaken render-signature freshness or the existing rule that only a passed current final-output manifest can be saved as verified.
+
 ### Owner approval refresh reasons are explicit in the status view
 - `v2/one-click-status-view.mjs`
 - `v2/one-click-status-view.test.mjs`
@@ -115,6 +126,7 @@ node --test \
   v2/release-approval.test.mjs \
   v2/verified-release-approval.test.mjs \
   v2/publishing.test.mjs \
+  v2/publishing-portability-regression.test.mjs \
   v2/final-output.test.mjs \
   v2/one-click-status-view.test.mjs
 ```
