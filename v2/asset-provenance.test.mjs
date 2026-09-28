@@ -48,6 +48,24 @@ test('portable provenance summary excludes local paths and internal provenance n
   assert.match(summary.note,/does not determine copyright ownership/i);
 });
 
+test('portable provenance summary redacts path-like source labels but keeps them in the internal audit',()=>{
+  let project=planScenes(createProject('Story'),5);
+  const scene=project.scenes[0].id;
+  project=addAsset(project,scene,{kind:'image',name:'licensed.png',sourcePath:'C:/private/licensed.png',provider:'local-import'});
+  const first=project.assets.at(-1).id;
+  project=setAssetProvenance(project,first,{origin:'licensed',rightsStatus:'license-confirmed',sourceLabel:'C:\\Users\\Abe\\license.txt',credit:'Creator'});
+  project=addAsset(project,scene,{kind:'image',name:'second.png',sourcePath:'/private/second.png',provider:'local-import'});
+  const second=project.assets.at(-1).id;
+  project=setAssetProvenance(project,second,{origin:'licensed',rightsStatus:'license-confirmed',sourceLabel:'/home/abe/license.txt',credit:'Creator 2'});
+  const audit=provenanceAudit(project);
+  assert.equal(audit.items.find(item=>item.assetId===first).sourceLabel,'C:\\Users\\Abe\\license.txt');
+  assert.equal(audit.items.find(item=>item.assetId===second).sourceLabel,'/home/abe/license.txt');
+  const summary=portableProvenanceSummary(project);
+  assert.equal(summary.assets.find(item=>item.assetId===first).sourceLabel,null);
+  assert.equal(summary.assets.find(item=>item.assetId===second).sourceLabel,null);
+  assert.doesNotMatch(JSON.stringify(summary),/Users\\Abe|\/home\/abe/);
+});
+
 test('unknown or unrecognized values remain review-required rather than being upgraded',()=>{
   let project=planScenes(createProject('Story'),5);
   const scene=project.scenes[0].id;
