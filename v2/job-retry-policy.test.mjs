@@ -13,10 +13,22 @@ test('image retry is eligible below conservative attempt cap but never auto-star
   assert.equal(result.automaticRetryAllowed,false);
 });
 
-test('retry stops at attempt cap',()=>{
+test('retry stops at attempt cap without losing the classified failure',()=>{
   const result=evaluateDraftJobRetry(imageJob,{...failed,attempts:2});
   assert.equal(result.allowed,false);
   assert.equal(result.reason,'retry-limit-reached');
+  assert.equal(result.failure.category,'TRANSIENT');
+  assert.equal(result.failure.retryEligible,true);
+  assert.equal(result.attempts,2);
+  assert.equal(result.limit,2);
+});
+
+test('non-retryable failure meaning outranks an exhausted retry counter',()=>{
+  const paid=evaluateDraftJobRetry(imageJob,{...failed,attempts:2,message:'paid provider credit required'});
+  assert.equal(paid.allowed,false);
+  assert.equal(paid.reason,'owner-or-paid-action-required');
+  assert.equal(paid.failure.retryEligible,false);
+  assert.equal(paid.attempts,2);
 });
 
 test('stale and owner or paid failures require replan or owner action',()=>{
