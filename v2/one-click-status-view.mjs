@@ -4,6 +4,28 @@ function pct(done,total){return total>0?Math.round((done/total)*100):0;}
 function label(value){return String(value||'').replace(/[_-]+/g,' ').replace(/\b\w/g,m=>m.toUpperCase());}
 function optionalEntry(entry){return entry?.plannedState==='OPTIONAL'||(!entry?.plannedState&&entry?.state==='OPTIONAL');}
 
+export function ownerApprovalReviewDetail(reason=''){
+  switch(String(reason||'')){
+    case 'release-inputs-changed':
+      return 'Release metadata or provenance changed after the previous approval. Review and approve the current release again.';
+    case 'render-inputs-changed':
+      return 'Render inputs changed after the previous approval. Review the current verified render and approve the release again.';
+    case 'technical-evidence-changed':
+      return 'Trusted technical evidence changed after the previous approval. Review the current verified media facts and approve again.';
+    case 'technical-verification-not-current':
+      return 'The previous approval no longer has current trusted machine verification. Re-establish verification before approving the release again.';
+    case 'technical-verification-missing':
+    case 'technical-verification-signature-missing':
+      return 'The previous approval is missing the required technical-verification record. Create a new verified owner approval for the current release.';
+    case 'verified-approval-required':
+      return 'The older approval record does not satisfy the verified one-click release boundary. Record verified owner approval for the current release.';
+    case 'owner-confirmations-incomplete':
+      return 'All explicit owner release confirmations must be completed for the current release.';
+    default:
+      return 'Explicit verified owner release approval is required for the current release.';
+  }
+}
+
 function executionProgress(entries=[]){
   const actionable=entries.filter(item=>!optionalEntry(item));
   const done=actionable.filter(item=>['DONE','SKIPPED'].includes(item.state));
@@ -104,9 +126,7 @@ export function oneClickStatusView(project,report,session,options={}){
       reviewDetail='Review asset provenance, rights and required credits.';
     }else if(ownerApproval?.current!==true){
       reviewState='REQUIRED';
-      reviewDetail=ownerApproval?.reason==='release-inputs-changed'
-        ?'The previous owner approval is stale because release inputs changed. Review and approve the current release again.'
-        :'Explicit owner release approval is required for the current release.';
+      reviewDetail=ownerApprovalReviewDetail(ownerApproval?.reason);
     }else{
       reviewState='PENDING';
       reviewDetail='Owner release review is not complete.';
@@ -142,9 +162,7 @@ export function oneClickStatusView(project,report,session,options={}){
       detail='Technical verification passed. Review current asset provenance, rights and credits.';
     }else if(completion.state==='OWNER APPROVAL REQUIRED'){
       headline='Owner approval required';
-      detail=ownerApproval?.reason==='release-inputs-changed'
-        ?'Release inputs changed after the previous approval. Review and approve the current release again.'
-        :'Review the current release and record explicit owner approval.';
+      detail=ownerApprovalReviewDetail(ownerApproval?.reason);
     }else if(completion.state==='OWNER APPROVED — MANUAL PUBLISH ONLY'){
       headline='Ready for manual publish';
       detail='Current technical, rights and owner-review requirements are complete. Publishing remains a manual owner action.';
