@@ -2,6 +2,7 @@ import {addAsset,reusableAsset} from './core.mjs';
 import {updateDraftJobState} from './draft-execution-ledger.mjs';
 import {inspectOneClickSession} from './one-click-orchestrator.mjs';
 import {validateOneClickDispatch} from './one-click-dispatch-envelope.mjs';
+import {validateGenerationInputGuard} from './generation-input-guard.mjs';
 import {processOneClickDispatchResult} from './one-click-result-processor.mjs';
 
 const MEDIA_KIND_BY_JOB={image:'image',motion:'video'};
@@ -10,6 +11,7 @@ function clean(value,max=500){return String(value||'').replace(/\s+/g,' ').trim(
 function finite(value){const n=Number(value);return Number.isFinite(n)&&n>=0?n:null;}
 function resultOk(result){return result?.ok===true||result?.success===true||result?.status==='ok'||result?.status==='success';}
 function basename(value){return clean(String(value||'').split(/[\\/]/).filter(Boolean).at(-1)||'',180);}
+function staleReason(reason=''){return String(reason).startsWith('stale-dispatch:')||String(reason).startsWith('stale-generation:');}
 
 function localPath(value){
   const path=String(value||'').trim();
@@ -57,6 +59,8 @@ export function prepareGeneratedMediaRegistration(project,envelope,result={}){
     const parent=parentForMotion(project,sceneId,result);
     if(!parent.ok)return parent;
     parentAssetId=parent.parentAssetId;
+    const generation=validateGenerationInputGuard(project,envelope.generationGuard,{route,parentAssetId});
+    if(!generation.ok)return {ok:false,reason:`stale-generation:${generation.reason}`};
   }
   const name=clean(result.name,180)||basename(source.path)||`${envelope.jobType}-${scene.order||sceneId}`;
   return {
@@ -93,7 +97,7 @@ export function commitOneClickGeneratedMedia(project,report,session,envelope,res
       accepted:false,
       registeredMedia:false,
       reason:prepared.reason,
-      nextAction:String(prepared.reason||'').startsWith('stale-dispatch:')?'REPLAN':'REVIEW_BLOCKERS',
+      nextAction:staleReason(prepared.reason)?'REPLAN':'REVIEW_BLOCKERS',
       project,
       session,
       publishAuthorized:false,
