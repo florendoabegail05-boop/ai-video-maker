@@ -9,7 +9,7 @@ let activeProjectId='';
 function projects(){try{return loadProjects(localStorage);}catch{return [];}}
 function decorate(){decorateProjectButtons(el('projects'),projects());}
 function activeProject(){
-  return chooseProject(projects(),{projectId:activeProjectId,name:el('name')?.value||'',prompt:(el('prompt')?.value||'').trim()});
+  return chooseProject(projects(),{projectId:el('projects')?.dataset.activeProjectId||activeProjectId,name:el('name')?.value||'',prompt:(el('prompt')?.value||'').trim()});
 }
 function status(message){const node=el('finalVerificationStatus');if(node)node.textContent=message;}
 function clickProject(projectId){
@@ -73,7 +73,9 @@ async function verifySelectedFile(){
     const manifest=makeFinalOutputManifest(project,media,{aspect:'9:16',width:1080,height:1920,fps:30,durationTolerance:0.35});
     const errors=manifest.issues.filter(item=>item.severity==='error');
     if(errors.length){status('Verification did not pass: '+errors.map(item=>item.message).join(' '));return;}
-    const next=setFinalVerification(project,manifest);
+    const latest=activeProject();
+    if(!latest||latest.id!==project.id||latest.revision!==project.revision)throw Error('Project changed during verification. Select the current final MP4 and retry.');
+    const next=setFinalVerification(latest,manifest);
     saveProject(localStorage,next);
     activeProjectId=next.id;
     if(!clickProject(next.id))window.location.reload();

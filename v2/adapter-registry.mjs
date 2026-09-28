@@ -5,7 +5,11 @@ const KINDS=['image','video','voice','music','sfx','lipsync','upscale'];
 function bool(value){return value===true;}
 
 export function adapterRegistryFromCapabilities(report={}){
-  const routes=report.routes||{};
+  const routes={...(report.routes||{})};
+  if(report.mock===true)return [];
+  if(report.freeOnlyImageWorkflow===true)routes.image={provider:'local-comfyui',verified:true};
+  else if(report.imageFallback?.enabled===true)routes.image={provider:'fallback',verified:true};
+  if(report.motionFallback?.enabled===true&&report.tools?.ffmpeg?.available===true&&report.tools?.ffprobe?.available===true&&report.tools.ffmpeg.libx264!==false)routes.video={provider:'motion-fallback',verified:true};
   const workflows=report.workflows||{};
   const generatedAudio=report.generatedAudio||report.audioGeneration||{};
   const entries=[];

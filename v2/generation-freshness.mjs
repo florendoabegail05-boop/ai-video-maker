@@ -6,7 +6,7 @@ export function invalidateGeneratedAssets(project,{sceneIds=null,reason='generat
   const scoped=sceneIds?new Set(sceneIds):null;
   let changed=0;
   const assets=(project?.assets||[]).map(asset=>{
-    if(!isGeneratedMedia(asset)||asset.locked||(scoped&&!scoped.has(asset.sceneId)))return asset;
+    if(!isGeneratedMedia(asset)||asset.locked||asset.status==='kept'||(scoped&&!scoped.has(asset.sceneId)))return asset;
     if(asset.status==='needs regeneration'&&asset.staleReason===reason)return asset;
     changed+=1;
     return {...asset,status:'needs regeneration',staleReason:reason};

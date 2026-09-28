@@ -61,3 +61,6 @@ Then run the full V2 and local-bridge regression suite from the main handoff.
 The render signature is a change detector, not a cryptographic security mechanism and not a media hash. Work/Codex should not present it as proof that a file's bytes are identical. Real MP4 facts still need the existing bridge/`ffprobe` verification path.
 
 Preserve V1/main, use FREE ONLY, and do not download large models, enable paid providers, upload private media remotely, force-push, or make destructive changes without owner approval.
+
+## Local verification update — 2026-09-28
+Browser-tested: title-only save preserves freshness; caption, imported music and scene reorder make verification stale; current 1080x1920/15s MP4 passes; a 360x640/5s scene clip is rejected without replacing prior verification. Duplicate project IDs remain isolated. Browser FPS/audio facts are unknown, not zero/false; bridge rational FPS parses correctly. FFprobe agrees with bridge on the real caption/audio final. Full expanded suite: 152 passed, zero failed/skipped. No artistic/rights approval implied.

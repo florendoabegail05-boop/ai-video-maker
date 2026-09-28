@@ -24,7 +24,7 @@ export function chooseActiveProject(projects,{projectId='',name='',prompt=''}={}
 }
 
 function activeProject(){
-  try{return chooseActiveProject(projectsNow(),{projectId:selectedProjectId,name:el('name')?.value||'',prompt:(el('prompt')?.value||'').trim()});}
+  try{return chooseActiveProject(projectsNow(),{projectId:el('projects')?.dataset.activeProjectId||selectedProjectId,name:el('name')?.value||'',prompt:(el('prompt')?.value||'').trim()});}
   catch{return null;}
 }
 
@@ -98,7 +98,7 @@ function renderQc(project){
   if(!host)return;
   host.replaceChildren();
   if(!project){host.textContent='Select or create a project to run technical preflight.';return;}
-  const report=runTechnicalQc(project,{targetAspect:'9:16'});
+  const report=runTechnicalQc(project,{targetAspect:'9:16',requireLocalClips:true});
   const head=document.createElement('p');
   const strong=document.createElement('strong');strong.textContent=report.passed?'Technical preflight: PASS':'Technical preflight: NEEDS ATTENTION';
   head.append(strong,document.createTextNode(` · ${report.summary.errors} errors · ${report.summary.warnings} warnings`));host.append(head);

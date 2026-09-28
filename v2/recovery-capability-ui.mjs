@@ -12,7 +12,7 @@ function projects(){try{return loadProjects(localStorage);}catch{return [];}}
 function decorate(){decorateProjectButtons(el('projects'),projects());}
 function activeProject(){
   const all=projects();
-  return chooseProject(all,{projectId:activeProjectId,name:el('name')?.value||'',prompt:(el('prompt')?.value||'').trim()});
+  return chooseProject(all,{projectId:el('projects')?.dataset.activeProjectId||activeProjectId,name:el('name')?.value||'',prompt:(el('prompt')?.value||'').trim()});
 }
 function clickProject(projectId){
   decorate();
