@@ -3,16 +3,27 @@ const RIGHTS=new Set(['owner-confirmed','license-confirmed','public-domain-confi
 
 function clean(value,max=240){return String(value||'').replace(/\s+/g,' ').trim().slice(0,max);}
 
-function portableSourceLabel(value){
-  const label=clean(value,160);
-  if(!label)return null;
-  const localPathLike=/^file:/i.test(label)
-    ||/[A-Za-z]:[\\/]/.test(label)
-    ||/\\\\/.test(label)
-    ||/^\//.test(label)
-    ||/\/(?:Users|home|mnt|private|tmp|var|etc)\//i.test(label);
-  return localPathLike?null:label;
+function portableBasename(value,max=180){
+  let raw=String(value??'').replace(/\0/g,'').trim();
+  if(!raw)return null;
+  if(/^[a-z][a-z0-9+.-]*:/i.test(raw)){
+    try{
+      const parsed=new URL(raw);
+      raw=decodeURIComponent(parsed.pathname||'');
+    }catch{
+      raw=raw.split(/[?#]/)[0];
+    }
+  }else raw=raw.split(/[?#]/)[0];
+  const normalized=raw.replace(/\\/g,'/');
+  const parts=normalized.split('/').filter(Boolean);
+  const pathLike=normalized.includes('/')||/^[a-zA-Z]:/.test(normalized);
+  const candidate=pathLike?(parts.at(-1)||''):normalized;
+  const safe=clean(candidate,max);
+  if(!safe||/^[a-zA-Z]:$/.test(safe))return null;
+  return safe;
 }
+
+export function portableAssetName(value){return portableBasename(value,180);}
 
 export function normalizeAssetProvenance(values={}){
   const origin=ORIGINS.has(values.origin)?values.origin:'unknown';
@@ -73,6 +84,13 @@ export function provenanceAudit(project){
   };
 }
 
+function portableSourceLabel(value){
+  const label=clean(value,160);
+  if(!label)return null;
+  if(/^(?:[a-zA-Z]:[\\/]|\\\\|\/|file:)/i.test(label))return null;
+  return label;
+}
+
 export function portableProvenanceSummary(project){
   const audit=provenanceAudit(project);
   return {
@@ -81,7 +99,16 @@ export function portableProvenanceSummary(project){
     projectId:project?.id||null,
     complete:audit.complete,
     summary:audit.summary,
-    assets:audit.items.map(item=>({assetId:item.assetId,name:item.name,kind:item.kind,origin:item.origin,rightsStatus:item.rightsStatus,sourceLabel:portableSourceLabel(item.sourceLabel),credit:item.credit,needsReview:item.needsReview})),
+    assets:audit.items.map(item=>({
+      assetId:item.assetId,
+      name:portableAssetName(item.name)||item.assetId,
+      kind:item.kind,
+      origin:item.origin,
+      rightsStatus:item.rightsStatus,
+      sourceLabel:portableSourceLabel(item.sourceLabel),
+      credit:item.credit,
+      needsReview:item.needsReview
+    })),
     note:audit.note
   };
 }
