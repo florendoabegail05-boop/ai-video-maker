@@ -26,9 +26,18 @@ test('portable manifest excludes local paths and can patch publishing verificati
   const manifest=makeFinalOutputManifest(project,{video:{width:1080,height:1920,fps:30},audio:{codec:'aac'},duration:15,bytes:9_000_000,provider:'ffmpeg',path:'C:/private/final.mp4',url:'http://127.0.0.1/file'});
   const text=JSON.stringify(manifest);
   assert.equal(manifest.verified,true);
+  assert.equal(manifest.provider,'ffmpeg');
   assert.doesNotMatch(text,/C:\/private/);
   assert.doesNotMatch(text,/127\.0\.0\.1/);
   const patch=publishingVerificationPatch(manifest);
   assert.equal(patch.finalVideoVerified,true);
   assert.equal(patch.finalOutput.width,1080);
+});
+
+test('path-like or URL-like provider values are not copied into portable verification manifests',()=>{
+  const base={video:{width:1080,height:1920,fps:30},duration:15,bytes:9_000_000};
+  assert.equal(makeFinalOutputManifest(project,{...base,provider:'C:\\Users\\Abe\\ffmpeg.exe'}).provider,null);
+  assert.equal(makeFinalOutputManifest(project,{...base,provider:'/usr/local/bin/ffmpeg'}).provider,null);
+  assert.equal(makeFinalOutputManifest(project,{...base,provider:'https://private.example.test/tool?token=SECRET'}).provider,null);
+  assert.equal(makeFinalOutputManifest(project,{...base,provider:'bridge-local'}).provider,'bridge-local');
 });
