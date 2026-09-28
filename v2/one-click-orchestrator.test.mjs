@@ -19,6 +19,7 @@ function report(){return {
 test('creates a FREE ONLY session with no publish authority',()=>{
   const session=createOneClickSession(project(),report());
   assert.equal(session.costMode,'FREE ONLY');
+  assert.match(session.planFingerprint,/^dpf1-/);
   assert.equal(session.publishAuthorized,false);
   assert.equal(session.automaticPublishingAllowed,false);
 });
@@ -39,6 +40,25 @@ test('project revision change requires replan instead of continuing stale sessio
   const inspected=inspectOneClickSession(changed,r,session);
   assert.equal(inspected.valid,false);
   assert.equal(inspected.nextAction,'REPLAN');
+});
+
+test('provider capability drift requires replan instead of using the saved route',()=>{
+  const p=project(),r=report();
+  const session=createOneClickSession(p,r);
+  const changedReport={...r,freeOnlyImageWorkflow:false};
+  const inspected=inspectOneClickSession(p,changedReport,session);
+  assert.equal(inspected.valid,false);
+  assert.equal(inspected.reason,'execution-plan-changed');
+  assert.equal(inspected.nextAction,'REPLAN');
+  assert.notEqual(inspected.savedPlanFingerprint,inspected.currentPlanFingerprint);
+});
+
+test('changing creation options requires a fresh one-click plan',()=>{
+  const p=project(),r=report();
+  const session=createOneClickSession(p,r,{creation:{wantMotion:true,wantAudio:false,wantCaptions:true}});
+  const inspected=inspectOneClickSession(p,r,session,{creation:{wantMotion:false,wantAudio:false,wantCaptions:true}});
+  assert.equal(inspected.valid,false);
+  assert.equal(inspected.reason,'execution-plan-changed');
 });
 
 test('incomplete session never produces publish readiness',()=>{
