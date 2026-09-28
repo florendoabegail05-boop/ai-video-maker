@@ -24,6 +24,17 @@ test('blocks known wrong dimensions with a hard mismatch reason',()=>{
   assert.ok(result.blockerReasons.includes('dimensions-mismatch'));
 });
 
+test('known non-positive dimensions are invalid rather than unknown',()=>{
+  const p=project();
+  const machine=machineFinalMediaFacts(p,{width:0,height:1920,duration:5},'ffprobe');
+  const result=finalVerificationGate(p,[machine]);
+  assert.equal(result.passed,false);
+  assert.ok(result.blockerReasons.includes('dimensions-invalid'));
+  const dimensions=result.checks.find(item=>item.id==='dimensions');
+  assert.equal(dimensions.actualWidth,0);
+  assert.equal(dimensions.actualHeight,1920);
+});
+
 test('zero-duration final output is a hard technical blocker',()=>{
   const p=project();
   const machine=machineFinalMediaFacts(p,{width:1080,height:1920,duration:0,audioStream:false},'ffprobe');
@@ -32,6 +43,15 @@ test('zero-duration final output is a hard technical blocker',()=>{
   assert.ok(result.blockers.includes('duration'));
   assert.ok(result.blockerReasons.includes('duration-invalid'));
   assert.equal(result.checks.find(item=>item.id==='duration').actual,0);
+});
+
+test('known zero FPS is invalid when FPS is required',()=>{
+  const p=project();
+  const machine=machineFinalMediaFacts(p,{width:1080,height:1920,duration:5,fps:0},'ffprobe');
+  const result=finalVerificationGate(p,[machine],{requireFps:true});
+  assert.equal(result.passed,false);
+  assert.ok(result.blockerReasons.includes('fps-invalid'));
+  assert.equal(result.checks.find(item=>item.id==='fps').actual,0);
 });
 
 test('current browser dimensions and duration can fill unknown machine facts for browser-observable fields',()=>{
