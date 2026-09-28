@@ -12,7 +12,27 @@ test('passes core technical gate with trusted matching machine facts',()=>{
   assert.equal(result.passed,true);
   assert.deepEqual(result.blockers,[]);
   assert.deepEqual(result.blockerReasons,[]);
+  assert.equal(result.checks.find(item=>item.id==='audio-codec').state,'PASS');
   assert.equal(result.publishAuthorized,false);
+});
+
+test('required codecs include audio codec when an audio stream is verified present',()=>{
+  const p=project();
+  const machine=machineFinalMediaFacts(p,{width:1080,height:1920,duration:5,audioStream:true,videoCodec:'h264',audioCodec:null},'ffprobe');
+  const result=finalVerificationGate(p,[machine],{requireCodecs:true});
+  assert.equal(result.passed,false);
+  assert.ok(result.blockers.includes('audio-codec'));
+  assert.ok(result.blockerReasons.includes('audioCodec-unknown'));
+});
+
+test('required codecs do not invent an audio-codec blocker for a verified silent render',()=>{
+  const p=project();
+  const machine=machineFinalMediaFacts(p,{width:1080,height:1920,duration:5,audioStream:false,videoCodec:'h264'},'ffprobe');
+  const result=finalVerificationGate(p,[machine],{requireCodecs:true});
+  assert.equal(result.passed,true);
+  const audioCodec=result.checks.find(item=>item.id==='audio-codec');
+  assert.equal(audioCodec.state,'INFO');
+  assert.equal(audioCodec.reason,'audioCodec-not-applicable');
 });
 
 test('blocks known wrong dimensions with a hard mismatch reason',()=>{
