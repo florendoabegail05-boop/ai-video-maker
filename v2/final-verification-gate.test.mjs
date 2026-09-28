@@ -11,15 +11,28 @@ test('passes core technical gate with trusted matching machine facts',()=>{
   const result=finalVerificationGate(p,[machine],{requireAudioStream:true,requireFps:true,requireCodecs:true,requireContainer:true});
   assert.equal(result.passed,true);
   assert.deepEqual(result.blockers,[]);
+  assert.deepEqual(result.blockerReasons,[]);
   assert.equal(result.publishAuthorized,false);
 });
 
-test('blocks when trusted dimensions do not match expected output',()=>{
+test('blocks known wrong dimensions with a hard mismatch reason',()=>{
   const p=project();
   const machine=machineFinalMediaFacts(p,{width:720,height:1280,duration:5,audioStream:false},'ffprobe');
   const result=finalVerificationGate(p,[machine]);
   assert.equal(result.passed,false);
   assert.ok(result.blockers.includes('dimensions'));
+  assert.ok(result.blockerReasons.includes('dimensions-mismatch'));
+});
+
+test('current browser dimensions and duration can fill unknown machine facts for browser-observable fields',()=>{
+  const p=project();
+  const browser=browserFinalMediaFacts(p,{width:1080,height:1920,duration:5,fileSize:1000,mimeType:'video/mp4'});
+  const machine=machineFinalMediaFacts(p,{width:null,height:null,duration:null,audioStream:null},'ffprobe');
+  const result=finalVerificationGate(p,[machine,browser]);
+  assert.equal(result.passed,true);
+  assert.equal(result.checks.find(item=>item.id==='dimensions').state,'PASS');
+  assert.equal(result.checks.find(item=>item.id==='duration').state,'PASS');
+  assert.equal(result.reconciliation.selected.width.source,'browser');
 });
 
 test('does not let browser-only facts prove required audio stream',()=>{
@@ -28,18 +41,28 @@ test('does not let browser-only facts prove required audio stream',()=>{
   const result=finalVerificationGate(p,[browser],{requireAudioStream:true});
   assert.equal(result.passed,false);
   assert.ok(result.blockers.includes('audio-stream'));
+  assert.ok(result.blockerReasons.includes('audio-unknown'));
 });
 
-test('surfaces browser and ffprobe contradictions as blockers',()=>{
+test('verified missing required audio is distinguished from unknown audio',()=>{
+  const p=project();
+  const machine=machineFinalMediaFacts(p,{width:1080,height:1920,duration:5,audioStream:false},'ffprobe');
+  const result=finalVerificationGate(p,[machine],{requireAudioStream:true});
+  assert.equal(result.passed,false);
+  assert.ok(result.blockerReasons.includes('audio-absent'));
+});
+
+test('surfaces browser and ffprobe contradictions as hard blockers',()=>{
   const p=project();
   const browser=browserFinalMediaFacts(p,{width:1080,height:1920,duration:5});
   const machine=machineFinalMediaFacts(p,{width:720,height:1280,duration:6,audioStream:true},'ffprobe');
   const result=finalVerificationGate(p,[browser,machine]);
   assert.equal(result.passed,false);
   assert.ok(result.blockers.includes('contradictions'));
+  assert.ok(result.blockerReasons.includes('facts-contradict'));
 });
 
-test('stale fact sets cannot verify a changed render',()=>{
+test('stale fact sets cannot verify a changed render and are classified as unknown evidence',()=>{
   const p=project();
   const machine=machineFinalMediaFacts(p,{width:1080,height:1920,duration:5,audioStream:true},'ffprobe');
   const changed={...p,scenes:[{...p.scenes[0],duration:6}]};
@@ -48,6 +71,9 @@ test('stale fact sets cannot verify a changed render',()=>{
   assert.ok(result.blockers.includes('dimensions'));
   assert.ok(result.blockers.includes('duration'));
   assert.ok(result.blockers.includes('audio-stream'));
+  assert.ok(result.blockerReasons.includes('dimensions-unknown'));
+  assert.ok(result.blockerReasons.includes('duration-unknown'));
+  assert.ok(result.blockerReasons.includes('audio-unknown'));
 });
 
 test('audio may remain informational when not required',()=>{
