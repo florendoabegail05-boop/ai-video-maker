@@ -93,6 +93,30 @@ test('motion output derives a same-scene image parent and registers a new video 
   assert.equal(result.project.assets.at(-1).parentAssetId,p.assets.at(-1).id);
 });
 
+test('motion output cannot switch to a different valid parent after dispatch',()=>{
+  const r=report();
+  let p=project();
+  const scene=p.scenes[0];
+  p=addAsset(p,scene.id,{kind:'image',name:'guarded.png',hasFile:true,sourcePath:'C:\\AIVM\\media\\guarded.png',provider:'basic-local-still'});
+  const guardedParent=p.assets.at(-1);
+  let s=afterDirector(p,r);
+  const imageJob=`image:${scene.id}`;
+  s={...s,ledger:updateDraftJobState(s.ledger,imageJob,'RUNNING')};
+  s={...s,ledger:updateDraftJobState(s.ledger,imageJob,'DONE')};
+  const prepared=prepareNextOneClickDispatch(p,r,s,options());
+  assert.equal(prepared.envelope.jobType,'motion');
+  p=addAsset(p,scene.id,{kind:'image',name:'alternate.png',hasFile:true,sourcePath:'C:\\AIVM\\media\\alternate.png',provider:'basic-local-still'});
+  const alternateParent=p.assets.at(-1);
+  const staged=prepareGeneratedMediaRegistration(p,prepared.envelope,{
+    ok:true,
+    sourcePath:'C:\\AIVM\\media\\motion.mp4',
+    parentAssetId:alternateParent.id
+  });
+  assert.equal(staged.ok,false);
+  assert.equal(staged.reason,'stale-generation:generation-inputs-changed');
+  assert.notEqual(alternateParent.id,guardedParent.id);
+});
+
 test('non-media jobs delegate to the normal result processor without registering media',()=>{
   const p=project(),r=report();
   const s=createOneClickSession(p,r,options());
