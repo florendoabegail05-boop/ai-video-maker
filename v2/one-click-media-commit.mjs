@@ -106,11 +106,14 @@ export function commitOneClickGeneratedMedia(project,report,session,envelope,res
 
   const updatedProject=addAsset(project,prepared.sceneId,prepared.asset);
   const newAsset=updatedProject.assets.at(-1);
-  const ledger=updateDraftJobState(processed.session.ledger,envelope.jobId,'DONE',{
+  let ledger=updateDraftJobState(processed.session.ledger,envelope.jobId,'DONE',{
     message:clean(result.message||'Generated media registered after guarded executor success.'),
     resultAssetIds:[newAsset.id]
   });
-  const updatedSession={...processed.session,projectRevision:Number(updatedProject.revision)||0,ledger};
+  const rebasedRevision=Number(updatedProject.revision)||0;
+  ledger={...ledger,projectRevision:rebasedRevision};
+  const plan={...processed.session.plan,projectRevision:rebasedRevision};
+  const updatedSession={...processed.session,projectRevision:rebasedRevision,plan,ledger};
   const execution=inspectOneClickSession(updatedProject,report,updatedSession,{creation:options.creation||{}});
   return {
     accepted:true,
