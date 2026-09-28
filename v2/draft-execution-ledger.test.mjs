@@ -24,6 +24,19 @@ test('tracks running and done states without reopening completed work',()=>{
  assert.throws(()=>updateDraftJobState(ledger,'image:s1','RUNNING'),/cannot be silently reopened/i);
 });
 
+test('metadata-only state updates preserve result asset ids unless replacement is explicit',()=>{
+ let ledger=createDraftExecutionLedger(project(),report(),{wantAudio:false});
+ ledger=updateDraftJobState(ledger,'image:s1','RUNNING');
+ ledger=updateDraftJobState(ledger,'image:s1','DONE',{message:'Initial guarded result.',resultAssetIds:['a1','a1','a2']});
+ ledger=updateDraftJobState(ledger,'image:s1','DONE',{message:'Post-registration metadata confirmed.'});
+ let entry=ledger.entries.find(e=>e.jobId==='image:s1');
+ assert.deepEqual(entry.resultAssetIds,['a1','a2']);
+ assert.equal(entry.message,'Post-registration metadata confirmed.');
+ ledger=updateDraftJobState(ledger,'image:s1','DONE',{resultAssetIds:[]});
+ entry=ledger.entries.find(e=>e.jobId==='image:s1');
+ assert.deepEqual(entry.resultAssetIds,[]);
+});
+
 test('detects project revision drift and marks unfinished work stale',()=>{
  const p=project(),r=report();
  let ledger=createDraftExecutionLedger(p,r,{wantAudio:false});
