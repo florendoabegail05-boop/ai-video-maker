@@ -73,14 +73,23 @@ export function draftExecutionSummary(ledger){
   const entries=Array.isArray(ledger?.entries)?ledger.entries:[];
   const counts={};
   for(const entry of entries)counts[entry.state]=(counts[entry.state]||0)+1;
-  const unfinished=entries.filter(entry=>!TERMINAL.has(entry.state)&&entry.state!=='OPTIONAL');
+  const required=entries.filter(entry=>entry.state!=='OPTIONAL');
+  const unfinished=required.filter(entry=>!TERMINAL.has(entry.state));
+  const staleCount=required.filter(entry=>entry.stale).length;
+  const settled=unfinished.length===0&&required.every(entry=>entry.state!=='RUNNING'&&entry.state!=='PENDING');
+  const successful=required.length>0&&required.every(entry=>['DONE','SKIPPED'].includes(entry.state)&&entry.stale!==true);
   return {
     total:entries.length,
+    required:required.length,
     counts,
     unfinished:unfinished.length,
-    stale:entries.filter(entry=>entry.stale).length,
+    stale:staleCount,
     next:unfinished.find(entry=>entry.state==='RUNNING')||unfinished.find(entry=>entry.state==='PENDING')||null,
-    complete:unfinished.length===0&&entries.every(entry=>entry.state!=='RUNNING'&&entry.state!=='PENDING'),
-    publishAuthorized:false
+    settled,
+    successful,
+    readyForVerification:successful,
+    complete:settled,
+    publishAuthorized:false,
+    note:'complete/settled only means required jobs are no longer pending or running. readyForVerification/successful requires every required job to be DONE or SKIPPED and current; FAILED, BLOCKED, MANUAL or stale work is not successful completion.'
   };
 }
