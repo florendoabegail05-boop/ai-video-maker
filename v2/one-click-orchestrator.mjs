@@ -113,7 +113,7 @@ export function oneClickCompletionStatus(project,report,session,{factSets=[],tec
     };
   }
 
-  const releaseContext=currentReleaseContext(project,{ownerReleaseApproval});
+  const releaseContext=currentReleaseContext(project,{ownerReleaseApproval,factSets,technical});
   const readiness=outputReadinessSummary(project,factSets,{
     technical,
     rights:releaseContext.rights,
@@ -129,6 +129,6 @@ export function oneClickCompletionStatus(project,report,session,{factSets=[],tec
     manualPublishEligible:readiness.manualPublishEligible===true,
     automaticPublishingAllowed:false,
     publishAuthorized:false,
-    note:'Finishing all required creation jobs does not equal publish approval. Rights readiness is derived from current project provenance, and owner approval counts only when a complete release-approval record is fresh for the current release inputs. Publishing remains manual.'
+    note:'Finishing all required creation jobs does not equal publish approval. Rights readiness is derived from current project provenance, and verified owner approval counts only while the current release inputs and trusted technical-evidence stamp still match. Publishing remains manual.'
   };
 }
