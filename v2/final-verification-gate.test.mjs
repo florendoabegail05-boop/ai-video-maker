@@ -24,6 +24,16 @@ test('blocks known wrong dimensions with a hard mismatch reason',()=>{
   assert.ok(result.blockerReasons.includes('dimensions-mismatch'));
 });
 
+test('zero-duration final output is a hard technical blocker',()=>{
+  const p=project();
+  const machine=machineFinalMediaFacts(p,{width:1080,height:1920,duration:0,audioStream:false},'ffprobe');
+  const result=finalVerificationGate(p,[machine]);
+  assert.equal(result.passed,false);
+  assert.ok(result.blockers.includes('duration'));
+  assert.ok(result.blockerReasons.includes('duration-invalid'));
+  assert.equal(result.checks.find(item=>item.id==='duration').actual,0);
+});
+
 test('current browser dimensions and duration can fill unknown machine facts for browser-observable fields',()=>{
   const p=project();
   const browser=browserFinalMediaFacts(p,{width:1080,height:1920,duration:5,fileSize:1000,mimeType:'video/mp4'});
