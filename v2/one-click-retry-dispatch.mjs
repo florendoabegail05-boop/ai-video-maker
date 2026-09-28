@@ -30,8 +30,12 @@ function payloadForJob(job,generationGuard=null){
   return payload;
 }
 
-function deniedAction(reason=''){
+function deniedAction(retry={}){
+  const classified=retry?.failure?.nextAction||null;
+  if(['OWNER_OR_MANUAL_INPUT_REQUIRED','REPLAN','REVIEW_BLOCKERS'].includes(classified))return classified;
+  const reason=retry?.reason||'';
   if(reason==='owner-or-paid-action-required')return 'OWNER_OR_MANUAL_INPUT_REQUIRED';
+  if(reason==='capability-required')return 'REVIEW_BLOCKERS';
   if(['state-changed-replan-required','stale-ledger-entry','project-mismatch','project-revision-mismatch'].includes(reason))return 'REPLAN';
   return 'REVIEW_FAILURE';
 }
@@ -68,7 +72,7 @@ export function prepareOneClickRetryDispatch(project,report,session,jobId,option
     return {
       prepared:false,
       reason:retry.reason,
-      nextAction:deniedAction(retry.reason),
+      nextAction:deniedAction(retry),
       retry,
       session,
       automaticRetryAllowed:false,
