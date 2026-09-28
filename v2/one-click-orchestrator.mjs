@@ -1,6 +1,7 @@
 import {buildDraftJobPlan} from './draft-job-plan.mjs';
 import {createDraftExecutionLedger,draftExecutionSummary} from './draft-execution-ledger.mjs';
 import {schedulableDraftJobs} from './job-dependency-scheduler.mjs';
+import {draftPlanFingerprint} from './draft-plan-fingerprint.mjs';
 import {outputReadinessSummary,outputReadinessLabel} from './output-readiness-summary.mjs';
 
 function compactJob(plan,entry){
@@ -26,6 +27,7 @@ export function createOneClickSession(project,report,options={}){
     projectRevision:Number(project.revision)||0,
     costMode:'FREE ONLY',
     plan,
+    planFingerprint:draftPlanFingerprint(plan),
     ledger,
     started:false,
     automaticPublishingAllowed:false,
@@ -40,6 +42,20 @@ export function inspectOneClickSession(project,report,session,options={}){
   if(Number(session.projectRevision)!==Number(project.revision||0))return {valid:false,reason:'project-revision-changed',nextAction:'REPLAN'};
 
   const plan=buildDraftJobPlan(project,report,options.creation||{});
+  const savedFingerprint=session.planFingerprint||draftPlanFingerprint(session.plan);
+  const currentFingerprint=draftPlanFingerprint(plan);
+  if(savedFingerprint!==currentFingerprint){
+    return {
+      valid:false,
+      reason:'execution-plan-changed',
+      nextAction:'REPLAN',
+      savedPlanFingerprint:savedFingerprint,
+      currentPlanFingerprint:currentFingerprint,
+      publishAuthorized:false,
+      note:'Provider/capability or creation-option drift changed the executable plan. Build a fresh one-click session instead of continuing stale routes.'
+    };
+  }
+
   const scheduled=schedulableDraftJobs(plan,session.ledger);
   const progress=draftExecutionSummary(session.ledger);
   const readyJobs=scheduled.ready.map(item=>{
@@ -57,6 +73,7 @@ export function inspectOneClickSession(project,report,session,options={}){
     valid:true,
     reason:'current',
     projectId:project.id,
+    planFingerprint:currentFingerprint,
     nextAction,
     nextJob:readyJobs[0]||null,
     readyJobs,
