@@ -23,6 +23,7 @@ node --test \
   v2/final-media-facts.test.mjs \
   v2/final-verification-gate.test.mjs \
   v2/output-readiness-summary.test.mjs \
+  v2/verified-release-approval.test.mjs \
   v2/current-release-context.test.mjs
 ```
 
@@ -45,6 +46,8 @@ Re-run the established local checks already used successfully on this branch:
 
 Technical facts must stay bound to the current render signature. Browser-only facts may establish width/height/duration/file size/MIME only; stream/FPS/codec/container claims require bridge/FFprobe-class evidence.
 
+Before owner release approval, require current FFprobe/bridge-class evidence for width, height and duration. Browser-only evidence is not sufficient for the verified owner-approval record.
+
 ## Phase 3 — minimal Studio one-click integration
 Integrate the current modules instead of rebuilding parallel logic:
 
@@ -57,7 +60,9 @@ Integrate the current modules instead of rebuilding parallel logic:
 7. `resolveManualOneClickJob` only after real imported/local media is present
 8. final FFprobe evidence
 9. `oneClickCompletionStatus`
-10. owner release review / manual publish only
+10. `verifiedReleaseApprovalPreflight`
+11. explicit `makeVerifiedOwnerReleaseApproval` only after owner review
+12. manual publish only
 
 ### Required UI behavior
 Show four read-only stages:
@@ -92,10 +97,14 @@ Keep these stages separate:
 1. successful required creation jobs
 2. trusted current technical verification
 3. current project provenance/rights review
-4. fresh explicit owner release approval
-5. manual publish action
+4. publishing title present
+5. current FFprobe/bridge-class width + height + duration evidence
+6. fresh explicit verified owner release approval
+7. manual publish action
 
-Arbitrary booleans must never substitute for a valid fresh `aivm-v2-owner-release-approval` record. If title/description, render inputs, provenance, rights status, credits, or other release-signature inputs change after approval, require owner review again.
+One-click release approval must be `aivm-v2-verified-owner-release-approval` with `technicalVerifiedAtApproval:true`. Legacy `aivm-v2-owner-release-approval` records and arbitrary booleans must not satisfy the one-click release boundary.
+
+If title/description, render inputs, provenance, rights status, credits, or other release-signature inputs change after approval, require owner review again.
 
 Even at the final state:
 - `publishAuthorized:false`
@@ -112,6 +121,7 @@ Do not:
 - bypass login/CAPTCHA/permission prompts
 - invent technical verification
 - invent Comfy workflow mappings
+- auto-approve owner review
 - auto-publish
 - modify `main`/V1
 - force push
