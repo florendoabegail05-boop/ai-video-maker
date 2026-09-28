@@ -59,7 +59,10 @@ export function technicalVerificationDescriptor(project,factSets=[],options={}){
   };
   if(normalized.requireAudioStream)selected.audioStream=actual(reconciliation,'audioStream');
   if(normalized.requireFps)selected.fps=actual(reconciliation,'fps');
-  if(normalized.requireCodecs)selected.videoCodec=actual(reconciliation,'videoCodec');
+  if(normalized.requireCodecs){
+    selected.videoCodec=actual(reconciliation,'videoCodec');
+    selected.audioCodec=actual(reconciliation,'audioCodec');
+  }
   if(normalized.requireContainer)selected.container=actual(reconciliation,'container');
 
   return {
@@ -85,6 +88,6 @@ export function currentTechnicalVerificationStamp(project,factSets=[],options={}
     signature:eligible?`tvs1-${hash32(stableStringify(descriptor))}`:null,
     descriptor,
     publishAuthorized:false,
-    note:'Portable deterministic stamp for the current configured technical gate. It excludes local paths and observation timestamps and never authorizes publishing.'
+    note:'Portable deterministic stamp for the current configured technical gate. Required codec verification binds both the video codec and, when present, the audio codec evidence. It excludes local paths and observation timestamps and never authorizes publishing.'
   };
 }
