@@ -30,6 +30,12 @@ A plan/ledger project revision mismatch now yields `project-revision-mismatch` a
 
 Failure classification now occurs before applying the transient retry cap. A transient failure at the cap is still `retry-limit-reached` but retains its failure classification. Non-retryable owner/payment/capability/replan failures must keep their real reason even if the attempt counter is already at the cap.
 
+### Retry dispatcher preserves classified blocker actions
+- `v2/one-click-retry-dispatch.mjs`
+- `v2/one-click-retry-dispatch.test.mjs`
+
+When retry is denied, keep conservative failure routing from the classifier. Missing capability/tool/workflow failures must surface `REVIEW_BLOCKERS`; owner/login/CAPTCHA/payment/permission failures must surface `OWNER_OR_MANUAL_INPUT_REQUIRED`; state drift must surface `REPLAN`. A transient failure that simply exhausted its retry cap stays `REVIEW_FAILURE` and must not become retry-eligible again.
+
 ### Stale motion parent evidence gets the more specific generation-staleness result
 - `v2/one-click-media-commit.mjs`
 
