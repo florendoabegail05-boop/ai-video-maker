@@ -1,5 +1,6 @@
 import {revise, validateProjectBackup, captionsForTimeline, reusableAsset, selectedProjectAudio} from './core.mjs';
 import {renderSignature,verificationFreshness} from './render-signature.mjs';
+import {portableProvenanceSummary} from './asset-provenance.mjs';
 
 export function publishingDetails(project) {
   return {title: project.publishing?.title ?? project.name ?? '', description: project.publishing?.description ?? ''};
@@ -80,6 +81,7 @@ export function makePublishingPackage(project) {
   if (!project.scenes.length) throw Error('Create a scene plan before exporting a publishing package.');
   const details = normalizeDetails(publishingDetails(project));
   const finalVerification=publishingVerification(project);
+  const provenance=portableProvenanceSummary(project);
   let start = 0;
   const scenes = project.scenes.map((scene, index) => {
     const clip = reusableAsset(project, scene.id, 'video');
@@ -97,6 +99,7 @@ export function makePublishingPackage(project) {
   ];
   const missing = scenes.filter(scene => !scene.selectedClipId).map(scene => scene.order);
   if (missing.length) warnings.push(`No eligible local clip is recorded for scene(s): ${missing.join(', ')}.`);
+  if(!provenance.complete)warnings.push(`${provenance.summary.needingReview} asset rights/source record${provenance.summary.needingReview===1?'':'s'} still require owner review before manual publishing.`);
   return {schema: 1, kind: 'aivm-v2-publishing-package', costMode: 'FREE ONLY',
     projectId: project.id, projectRevision: project.revision, ...details,
     renderSignature:renderSignature(project),
@@ -105,6 +108,7 @@ export function makePublishingPackage(project) {
     assets: project.assets.map(asset => ({id: asset.id, sceneId: asset.sceneId, kind: asset.kind,
       name: asset.name, provider: asset.provider || null, status: asset.status,
       locked: !!asset.locked, reference: !!asset.reference})),
+    provenance,
     captionsSrt: captionSrt(project), warnings,
     reviewChecklist: [
       'Watch the complete downloaded MP4: check motion, continuity, framing, captions and audio.',
