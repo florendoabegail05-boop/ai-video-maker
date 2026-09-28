@@ -55,6 +55,16 @@ test('owner, login, captcha or paid failures cannot be retried by the dispatcher
   assert.equal(retry.nextAction,'OWNER_OR_MANUAL_INPUT_REQUIRED');
 });
 
+test('missing capability failure stays a blocker instead of becoming a generic retry failure',()=>{
+  const p=project(),r=report();
+  const {session,imageId}=failedImageSession(p,r,'FFmpeg missing on this device');
+  const retry=prepareOneClickRetryDispatch(p,r,session,imageId,{creation,explicitRetry:true});
+  assert.equal(retry.prepared,false);
+  assert.equal(retry.reason,'capability-required');
+  assert.equal(retry.nextAction,'REVIEW_BLOCKERS');
+  assert.equal(retry.retry.failure.category,'CAPABILITY_MISSING');
+});
+
 test('retry limit is enforced before a second retry can start',()=>{
   const p=project(),r=report();
   const {session,imageId}=failedImageSession(p,r);
@@ -63,6 +73,8 @@ test('retry limit is enforced before a second retry can start',()=>{
   const retry=prepareOneClickRetryDispatch(p,r,failedAgain,imageId,{creation,explicitRetry:true});
   assert.equal(retry.prepared,false);
   assert.equal(retry.reason,'retry-limit-reached');
+  assert.equal(retry.retry.failure.category,'TRANSIENT');
+  assert.equal(retry.nextAction,'REVIEW_FAILURE');
 });
 
 test('project revision drift forces replan instead of retrying stale work',()=>{
