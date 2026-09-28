@@ -55,6 +55,17 @@ The final technical gate now distinguishes unknown from known-invalid media valu
 
 These known-invalid facts must produce output readiness `BLOCKED`, not `TECHNICAL VERIFICATION REQUIRED`. By contrast, truly missing trusted facts (for example required FPS is `null`) remain `TECHNICAL VERIFICATION REQUIRED` so the UI tells the owner to verify rather than incorrectly implying the render is definitely bad.
 
+### Owner release approval is bound to complete provenance metadata
+- `v2/asset-provenance.mjs`
+- `v2/asset-provenance.test.mjs`
+- `v2/release-approval.mjs`
+- `v2/release-approval.test.mjs`
+- `v2/verified-release-approval.test.mjs`
+
+Release signatures now include each asset's normalized provenance origin, rights status, source label, credit, and provenance note. A source-label, origin, rights, credit, or provenance-note change after owner approval must make both legacy and verified release approvals stale even when the render itself has not changed.
+
+`provenanceAudit` keeps the normalized source label and internal provenance note so release signing can see them. The portable provenance summary may expose the source label but must continue excluding local source paths and the internal provenance note.
+
 ## Required focused rerun after reconciliation
 
 ```bash
@@ -68,7 +79,10 @@ node --test \
   v2/one-click-media-commit.test.mjs \
   v2/one-click-dispatch-envelope.test.mjs \
   v2/one-click-result-processor.test.mjs \
-  v2/one-click-retry-dispatch.test.mjs
+  v2/one-click-retry-dispatch.test.mjs \
+  v2/asset-provenance.test.mjs \
+  v2/release-approval.test.mjs \
+  v2/verified-release-approval.test.mjs
 ```
 
 Then rerun the full regression:
