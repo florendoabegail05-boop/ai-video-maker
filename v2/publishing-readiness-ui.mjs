@@ -1,6 +1,7 @@
 import {loadProjects} from './core.mjs';
 import {chooseProject,decorateProjectButtons} from './project-selection.mjs';
 import {publishingReadiness,ownerReadyChecklist} from './publishing-readiness.mjs';
+import {makeOwnerHandoffPackage} from './owner-handoff.mjs';
 
 const el=id=>document.getElementById(id);
 let activeProjectId='';
@@ -17,10 +18,12 @@ export function renderPublishingReadiness(){
   host.replaceChildren();
   const project=activeProject();
   const exportButton=el('exportOwnerChecklist');
-  if(!project){host.textContent='Select or create a project to see publishing readiness.';if(exportButton)exportButton.disabled=true;return;}
+  const handoffButton=el('exportOwnerHandoff');
+  if(!project){host.textContent='Select or create a project to see publishing readiness.';if(exportButton)exportButton.disabled=true;if(handoffButton)handoffButton.disabled=true;return;}
   activeProjectId=project.id;
   const readiness=publishingReadiness(project);
   if(exportButton)exportButton.disabled=false;
+  if(handoffButton)handoffButton.disabled=false;
   const head=document.createElement('p');
   const strong=document.createElement('strong');strong.textContent=readiness.state;
   head.append(strong,document.createTextNode(` · ${readiness.summary.blocking} blocking · ${readiness.summary.passed} passed · ${readiness.summary.warnings} optional`));host.append(head);
@@ -41,11 +44,16 @@ el('exportOwnerChecklist')?.addEventListener('click',()=>{
   try{const project=activeProject();if(!project)throw Error('Select a project first.');downloadJson(ownerReadyChecklist(project),'aivm-v2-owner-review-checklist.json');status('Owner review checklist exported. Nothing was uploaded or published.');}
   catch(error){status(error.message);}
 });
+el('exportOwnerHandoff')?.addEventListener('click',()=>{
+  try{const project=activeProject();if(!project)throw Error('Select a project first.');const pack=makeOwnerHandoffPackage(project);downloadJson(pack,'aivm-v2-owner-handoff.json');status(pack.deterministicChecksPassed?'Owner handoff exported. Final owner review is still required.':'Handoff status exported with unresolved blockers. Nothing was uploaded or published.');}
+  catch(error){status(error.message);}
+});
 el('projects')?.addEventListener('click',event=>{const button=event.target.closest?.('button[data-project-id]');if(button?.dataset.projectId)activeProjectId=button.dataset.projectId;queueMicrotask(renderPublishingReadiness);});
 const projectHost=el('projects');if(projectHost)new MutationObserver(()=>decorate()).observe(projectHost,{childList:true});
 const summary=el('summary');if(summary)new MutationObserver(()=>queueMicrotask(renderPublishingReadiness)).observe(summary,{childList:true,characterData:true,subtree:true});
 const finalStatus=el('finalVerificationStatus');if(finalStatus)new MutationObserver(()=>queueMicrotask(renderPublishingReadiness)).observe(finalStatus,{childList:true,characterData:true,subtree:true});
 const publishStatus=el('publishingStatus');if(publishStatus)new MutationObserver(()=>queueMicrotask(renderPublishingReadiness)).observe(publishStatus,{childList:true,characterData:true,subtree:true});
+const scenes=el('scenes');if(scenes)new MutationObserver(()=>queueMicrotask(renderPublishingReadiness)).observe(scenes,{childList:true,subtree:true});
 window.addEventListener('storage',()=>{decorate();renderPublishingReadiness();});
 
 decorate();renderPublishingReadiness();
