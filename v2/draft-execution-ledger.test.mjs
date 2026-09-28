@@ -58,5 +58,15 @@ test('all required DONE or SKIPPED jobs are ready for verification even with opt
  assert.equal(summary.settled,true);
  assert.equal(summary.successful,true);
  assert.equal(summary.readyForVerification,true);
- assert.equal(summary.required,ledger.entries.filter(entry=>entry.state!=='OPTIONAL').length);
+ assert.equal(summary.required,ledger.entries.filter(entry=>entry.plannedState!=='OPTIONAL').length);
+});
+
+test('an OPTIONAL job remains optional after being marked SKIPPED',()=>{
+ let ledger=createDraftExecutionLedger(project(),report(),{wantAudio:false,wantMotion:true,wantCaptions:false});
+ const optionalEntry=ledger.entries.find(entry=>entry.plannedState==='OPTIONAL');
+ assert.ok(optionalEntry);
+ ledger=updateDraftJobState(ledger,optionalEntry.jobId,'SKIPPED',{message:'Optional work intentionally skipped.'});
+ const summary=draftExecutionSummary(ledger);
+ assert.equal(summary.optional,ledger.entries.filter(entry=>entry.plannedState==='OPTIONAL').length);
+ assert.equal(summary.required,ledger.entries.filter(entry=>entry.plannedState!=='OPTIONAL').length);
 });
