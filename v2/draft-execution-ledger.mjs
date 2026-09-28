@@ -6,6 +6,7 @@ const ACTIVE=new Set(['PENDING','RUNNING','DONE','SKIPPED','FAILED','BLOCKED','M
 function now(){return new Date().toISOString();}
 function normalizeState(value){const state=String(value||'PENDING').toUpperCase();if(!ACTIVE.has(state))throw Error('Unknown draft job execution state.');return state;}
 function jobMap(plan){return new Map(plan.jobs.map(job=>[job.id,job]));}
+function optionalEntry(entry){return entry?.plannedState==='OPTIONAL'||(!entry?.plannedState&&entry?.state==='OPTIONAL');}
 
 export function createDraftExecutionLedger(project,report,options={}){
   const plan=buildDraftJobPlan(project,report,options);
@@ -73,7 +74,8 @@ export function draftExecutionSummary(ledger){
   const entries=Array.isArray(ledger?.entries)?ledger.entries:[];
   const counts={};
   for(const entry of entries)counts[entry.state]=(counts[entry.state]||0)+1;
-  const required=entries.filter(entry=>entry.state!=='OPTIONAL');
+  const required=entries.filter(entry=>!optionalEntry(entry));
+  const optional=entries.filter(optionalEntry);
   const unfinished=required.filter(entry=>!TERMINAL.has(entry.state));
   const staleCount=required.filter(entry=>entry.stale).length;
   const settled=unfinished.length===0&&required.every(entry=>entry.state!=='RUNNING'&&entry.state!=='PENDING');
@@ -81,6 +83,7 @@ export function draftExecutionSummary(ledger){
   return {
     total:entries.length,
     required:required.length,
+    optional:optional.length,
     counts,
     unfinished:unfinished.length,
     stale:staleCount,
@@ -90,6 +93,6 @@ export function draftExecutionSummary(ledger){
     readyForVerification:successful,
     complete:settled,
     publishAuthorized:false,
-    note:'complete/settled only means required jobs are no longer pending or running. readyForVerification/successful requires every required job to be DONE or SKIPPED and current; FAILED, BLOCKED, MANUAL or stale work is not successful completion.'
+    note:'Required-vs-optional status comes from the planned job state, so an OPTIONAL job stays optional even after it is SKIPPED or otherwise resolved. complete/settled only means required jobs are no longer pending or running. readyForVerification/successful requires every required job to be DONE or SKIPPED and current.'
   };
 }
