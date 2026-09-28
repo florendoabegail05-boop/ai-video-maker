@@ -11,6 +11,7 @@ function project(){
     prompt:'A small cinematic test scene.',
     style:'cinematic',
     hardwareMode:'light',
+    bible:{character:'',world:'',visualRules:''},
     scenes:[{id:'scene-1',order:1,duration:5,prompt:'A child waves beside a tree.',caption:'Hello',assetIds:[]}],
     assets:[]
   };
@@ -62,6 +63,20 @@ test('the next image job carries scene-scoped payload without local file paths',
   assert.equal(prepared.envelope.payload.sceneId,'scene-1');
   assert.match(prepared.envelope.payload.prompt,/child waves/i);
   assert.equal('sourcePath' in prepared.envelope.payload,false);
+  assert.equal(prepared.envelope.generationGuard.kind,'aivm-v2-generation-input-guard');
+});
+
+test('image dispatch is rejected when bible inputs change even if the scene itself is unchanged',()=>{
+  const p=project(),r=report();
+  let s=session(p,r);
+  s={...s,ledger:updateDraftJobState(s.ledger,'director:project','RUNNING')};
+  s={...s,ledger:updateDraftJobState(s.ledger,'director:project','DONE')};
+  const prepared=prepareNextOneClickDispatch(p,r,s,{creation:{wantAudio:false,wantMotion:true,wantCaptions:true}});
+  assert.equal(prepared.envelope.jobType,'image');
+  const changed={...p,revision:2,bible:{...p.bible,character:'Keep the child in the same yellow raincoat.'}};
+  const result=validateOneClickDispatch(changed,prepared.envelope);
+  assert.equal(result.ok,false);
+  assert.equal(result.reason,'stale-generation:generation-inputs-changed');
 });
 
 test('paid or future-provider routes are never accepted by the dispatch validator',()=>{
