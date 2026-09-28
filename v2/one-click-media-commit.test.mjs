@@ -68,7 +68,35 @@ test('external URL output is rejected without project or session mutation',()=>{
   assert.equal(result.session,prepared.session);
 });
 
-test('motion output derives a same-scene image parent and registers a new video candidate',()=>{
+test('motion output proves the exact same-scene source image and registers a new video candidate',()=>{
+  const r=report();
+  let p=project();
+  const scene=p.scenes[0];
+  p=addAsset(p,scene.id,{kind:'image',name:'source.png',hasFile:true,sourcePath:'C:\\AIVM\\media\\source.png',provider:'basic-local-still'});
+  const parent=p.assets.at(-1);
+  let s=afterDirector(p,r);
+  const imageJob=`image:${scene.id}`;
+  s={...s,ledger:updateDraftJobState(s.ledger,imageJob,'RUNNING')};
+  s={...s,ledger:updateDraftJobState(s.ledger,imageJob,'DONE')};
+  const prepared=prepareNextOneClickDispatch(p,r,s,options());
+  assert.equal(prepared.envelope.jobType,'motion');
+  assert.equal(prepared.envelope.payload.sourceAssetId,parent.id);
+  const result=commitOneClickGeneratedMedia(p,r,prepared.session,prepared.envelope,{
+    ok:true,
+    sourcePath:'C:\\AIVM\\media\\scene-motion.mp4',
+    name:'scene-motion.mp4',
+    duration:5,
+    parentAssetId:parent.id
+  },options());
+  assert.equal(result.accepted,true);
+  assert.equal(result.registeredMedia,true);
+  assert.equal(result.asset.kind,'video');
+  assert.equal(result.asset.provider,'ffmpeg-camera-motion');
+  assert.equal(result.asset.parentAssetId,parent.id);
+  assert.equal(result.project.assets.at(-1).parentAssetId,parent.id);
+});
+
+test('motion result without source provenance is rejected',()=>{
   const r=report();
   let p=project();
   const scene=p.scenes[0];
@@ -78,19 +106,37 @@ test('motion output derives a same-scene image parent and registers a new video 
   s={...s,ledger:updateDraftJobState(s.ledger,imageJob,'RUNNING')};
   s={...s,ledger:updateDraftJobState(s.ledger,imageJob,'DONE')};
   const prepared=prepareNextOneClickDispatch(p,r,s,options());
-  assert.equal(prepared.envelope.jobType,'motion');
-  const result=commitOneClickGeneratedMedia(p,r,prepared.session,prepared.envelope,{
+  const staged=prepareGeneratedMediaRegistration(p,prepared.envelope,{
     ok:true,
-    sourcePath:'C:\\AIVM\\media\\scene-motion.mp4',
-    name:'scene-motion.mp4',
-    duration:5
-  },options());
-  assert.equal(result.accepted,true);
-  assert.equal(result.registeredMedia,true);
-  assert.equal(result.asset.kind,'video');
-  assert.equal(result.asset.provider,'ffmpeg-camera-motion');
-  assert.equal(result.asset.parentAssetId,p.assets.at(-1).id);
-  assert.equal(result.project.assets.at(-1).parentAssetId,p.assets.at(-1).id);
+    sourcePath:'C:\\AIVM\\media\\motion.mp4'
+  });
+  assert.equal(staged.ok,false);
+  assert.equal(staged.reason,'motion-parent-evidence-missing');
+});
+
+test('motion result naming a different parent than the dispatch is rejected',()=>{
+  const r=report();
+  let p=project();
+  const scene=p.scenes[0];
+  p=addAsset(p,scene.id,{kind:'image',name:'guarded.png',hasFile:true,sourcePath:'C:\\AIVM\\media\\guarded.png',provider:'basic-local-still'});
+  const guardedParent=p.assets.at(-1);
+  p=addAsset(p,scene.id,{kind:'image',name:'alternate.png',hasFile:true,sourcePath:'C:\\AIVM\\media\\alternate.png',provider:'basic-local-still'});
+  const alternateParent=p.assets.at(-1);
+  // Keep the first image so reusableAsset deterministically chooses the guarded source.
+  p={...p,assets:p.assets.map(asset=>asset.id===guardedParent.id?{...asset,status:'kept'}:asset)};
+  let s=afterDirector(p,r);
+  const imageJob=`image:${scene.id}`;
+  s={...s,ledger:updateDraftJobState(s.ledger,imageJob,'RUNNING')};
+  s={...s,ledger:updateDraftJobState(s.ledger,imageJob,'DONE')};
+  const prepared=prepareNextOneClickDispatch(p,r,s,options());
+  assert.equal(prepared.envelope.payload.sourceAssetId,guardedParent.id);
+  const staged=prepareGeneratedMediaRegistration(p,prepared.envelope,{
+    ok:true,
+    sourcePath:'C:\\AIVM\\media\\motion.mp4',
+    parentAssetId:alternateParent.id
+  });
+  assert.equal(staged.ok,false);
+  assert.equal(staged.reason,'motion-parent-mismatch');
 });
 
 test('motion output cannot switch to a different valid parent after dispatch',()=>{
@@ -141,12 +187,7 @@ test('motion registration refuses a stale requested parent image',()=>{
   s={...s,ledger:updateDraftJobState(s.ledger,imageJob,'RUNNING')};
   s={...s,ledger:updateDraftJobState(s.ledger,imageJob,'DONE')};
   const prepared=prepareNextOneClickDispatch(p,r,s,options());
-  assert.equal(prepared.envelope.jobType,'motion');
-  const staged=prepareGeneratedMediaRegistration(p,prepared.envelope,{
-    ok:true,
-    sourcePath:'C:\\AIVM\\media\\motion.mp4',
-    parentAssetId:parent.id
-  });
-  assert.equal(staged.ok,false);
-  assert.equal(staged.reason,'motion-parent-stale');
+  // No reusable current image should be dispatched when the only source is stale.
+  assert.equal(prepared.prepared,false);
+  assert.equal(prepared.reason,'motion-source-image-missing');
 });
