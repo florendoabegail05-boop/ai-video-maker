@@ -1,6 +1,10 @@
 import {renderSignature} from './render-signature.mjs';
 import {makeTechnicalEvidence,evidenceForCurrentRender} from './verification-evidence.mjs';
 
+const BROWSER_OBSERVABLE_FIELDS=new Set(['width','height','duration','fileSize','mimeType']);
+const SOURCE_PRIORITY={ffprobe:3,bridge:2,browser:1,unknown:0};
+const DURATION_CONTRADICTION_TOLERANCE_SECONDS=0.05;
+
 function finite(value){const n=Number(value);return Number.isFinite(n)?n:null;}
 function text(value,max=120){const s=String(value??'').replace(/\s+/g,' ').trim();return s?s.slice(0,max):null;}
 function boolOrNull(value){return value===true||value===false?value:null;}
@@ -59,34 +63,79 @@ export function machineFinalMediaFacts(project,facts={},source='ffprobe'){
 function contradiction(field,a,b){
   const av=a?.raw?.[field],bv=b?.raw?.[field];
   if(av===null||av===undefined||bv===null||bv===undefined)return null;
+  if(field==='duration'){
+    const left=Number(av),right=Number(bv);
+    if(Number.isFinite(left)&&Number.isFinite(right)){
+      const delta=Math.abs(left-right);
+      if(delta<=DURATION_CONTRADICTION_TOLERANCE_SECONDS)return null;
+      return {
+        field,
+        left:{kind:a.kind,source:a.source||'browser',value:av},
+        right:{kind:b.kind,source:b.source||'browser',value:bv},
+        deltaSeconds:delta,
+        toleranceSeconds:DURATION_CONTRADICTION_TOLERANCE_SECONDS
+      };
+    }
+  }
   return Object.is(av,bv)?null:{field,left:{kind:a.kind,source:a.source||'browser',value:av},right:{kind:b.kind,source:b.source||'browser',value:bv}};
 }
 
+function currentEvidence(project,set,field){
+  const candidate=set?.evidence?.[field];
+  return candidate?evidenceForCurrentRender(project,candidate):null;
+}
+
+function selectFieldEvidence(project,field,machine,browser){
+  const candidates=[];
+  for(const set of machine){
+    const current=currentEvidence(project,set,field);
+    if(current)candidates.push(current);
+  }
+  if(BROWSER_OBSERVABLE_FIELDS.has(field)){
+    for(const set of browser){
+      const current=currentEvidence(project,set,field);
+      if(current)candidates.push(current);
+    }
+  }
+  if(!candidates.length)return null;
+  candidates.sort((a,b)=>{
+    const aCurrent=a.stale===true?0:1,bCurrent=b.stale===true?0:1;
+    if(aCurrent!==bCurrent)return bCurrent-aCurrent;
+    const aTrusted=a.trusted===true?1:0,bTrusted=b.trusted===true?1:0;
+    if(aTrusted!==bTrusted)return bTrusted-aTrusted;
+    const aExplicit=a.value===null?0:1,bExplicit=b.value===null?0:1;
+    if(aExplicit!==bExplicit)return bExplicit-aExplicit;
+    const source=(SOURCE_PRIORITY[b.source]||0)-(SOURCE_PRIORITY[a.source]||0);
+    if(source)return source;
+    return String(b.observedAt||'').localeCompare(String(a.observedAt||''));
+  });
+  return candidates[0];
+}
+
 export function reconcileFinalMediaFacts(project,...sets){
-  const current=sets.filter(Boolean).filter(set=>set.renderSignature===renderSignature(project));
+  const signature=renderSignature(project);
+  const current=sets.filter(Boolean).filter(set=>set.renderSignature===signature);
   const machine=current.filter(set=>set.kind==='aivm-v2-machine-final-media-facts');
   const browser=current.filter(set=>set.kind==='aivm-v2-browser-final-media-facts');
   const contradictions=[];
   for(const b of browser)for(const m of machine)for(const field of ['width','height','duration']){
     const item=contradiction(field,b,m);if(item)contradictions.push(item);
   }
-  const bestMachine=machine.find(set=>set.source==='ffprobe')||machine[0]||null;
-  const bestBrowser=browser[0]||null;
   const selected={};
   for(const field of ['width','height','duration','fileSize','mimeType','fps','audioStream','videoCodec','audioCodec','container','resolution1080x1920','resolution2160x3840']){
-    const candidate=bestMachine?.evidence?.[field]||bestBrowser?.evidence?.[field]||null;
-    selected[field]=candidate?evidenceForCurrentRender(project,candidate):null;
+    selected[field]=selectFieldEvidence(project,field,machine,browser);
   }
   return {
     schema:1,
     kind:'aivm-v2-final-media-fact-reconciliation',
     projectId:project?.id||null,
-    renderSignature:renderSignature(project),
+    renderSignature:signature,
     selected,
     contradictions,
     hasContradictions:contradictions.length>0,
+    durationContradictionToleranceSeconds:DURATION_CONTRADICTION_TOLERANCE_SECONDS,
     portable:true,
     publishAuthorized:false,
-    note:'Trusted machine evidence is preferred for stream, FPS, codec, container and resolution claims. Unknown stays unknown. No local file paths are included.'
+    note:'Current trusted explicit machine evidence is preferred. Browser-observable fields may fall back to current trusted browser evidence when machine evidence is unknown. Stream, FPS, codec, container and resolution claims never fall back to browser facts. Unknown stays unknown and no local file paths are included.'
   };
 }
