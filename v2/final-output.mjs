@@ -1,3 +1,5 @@
+import {renderSignature} from './render-signature.mjs';
+
 function number(value){const n=Number(value);return Number.isFinite(n)?n:null;}
 function clean(value,max=240){return String(value||'').replace(/\s+/g,' ').trim().slice(0,max);}
 
@@ -35,6 +37,7 @@ export function makeFinalOutputManifest(project,media,options={}){
     kind:'aivm-v2-final-output-manifest',
     projectId:project?.id||null,
     projectRevision:Number(project?.revision)||0,
+    renderSignature:renderSignature(project),
     verifiedAt:new Date().toISOString(),
     verified:report.passed,
     expected:report.expected,
@@ -51,6 +54,7 @@ export function publishingVerificationPatch(manifest){
     finalVideoVerified:manifest.verified===true,
     finalOutput:{
       verifiedAt:manifest.verifiedAt,
+      renderSignature:manifest.renderSignature||null,
       width:manifest.actual?.width??null,
       height:manifest.actual?.height??null,
       duration:manifest.actual?.duration??null,
