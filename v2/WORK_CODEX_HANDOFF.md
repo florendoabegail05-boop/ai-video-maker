@@ -163,3 +163,13 @@ Acceptance: this complete owner flow works without paid calls and without destru
 ## Latest local verification
 
 Last known local verification before the newest chat-side Director/router commits: the previous Work/Codex session reported 31 V2/bridge tests plus six smoke suites passing with local FFmpeg, including real MP4/audio/caption rendering. **The newest Director/provider-router commits still need a fresh local test run.**
+
+### 2026-09-28 — Local regression milestone (base db688ee)
+
+- Fetched the current branch into the existing Windows checkout; no project restart.
+- Baseline: 113 V2/bridge tests, 111 passed and 2 failed. All six smoke scripts passed.
+- Fixed the Director opening-scene handoff cue and render signatures for optional/absent asset arrays. Existing assertions were retained.
+- After fixes: `node --test v2/*.test.mjs local-bridge/*.test.mjs`: **113 passed, 0 failed, 0 skipped** (9.99 seconds). Real FFmpeg preview/motion/MP4/audio/caption tests passed at their existing test dimensions.
+- Runtime: Node 24.21.0, portable FFmpeg/FFprobe 9.0.2 via explicit executable paths. No installs, downloads, paid providers or V1 changes.
+- Browser checks, the 1080x1920 route, live capability integration and freshness checks remain in progress; they are not certified by this unit-test milestone.
+- Hardware read-only observation: AMD A12-9720P, 4 logical CPUs, approximately 7 GiB RAM / 1 GiB free. Windows CIM GPU queries return Access denied. No AIVM ComfyUI workflow environment variables are configured in this process, and ports 8188/8000/8787 were initially unreachable. No model route enabled.

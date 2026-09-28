@@ -69,6 +69,7 @@ export function directorBrief(project,sceneId){
   const previous=index>0?scenes[index-1]:null;
   const next=index<scenes.length-1?scenes[index+1]:null;
   const continuity=[];
+  if(!previous)continuity.push('Opening scene: establish stable visual anchors for later scenes.');
   if(previous)continuity.push(`Previous beat: ${clean(previous.beat||previous.prompt,500)}`);
   if(next)continuity.push(`Next beat: ${clean(next.beat||next.prompt,500)}`);
   const direction=scene.direction||sceneDirection(index,scenes.length);

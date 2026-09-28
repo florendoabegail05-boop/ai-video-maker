@@ -30,6 +30,7 @@ function assetDescriptor(asset){
 }
 
 export function renderInputDescriptor(project){
+  project={...project,scenes:project?.scenes||[],assets:project?.assets||[]};
   const scenes=(project?.scenes||[]).map((scene,index)=>({
     sceneId:scene.id||null,
     order:index+1,
