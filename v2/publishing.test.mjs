@@ -59,17 +59,20 @@ test('package records approved clip selection and audio without local paths or f
 test('publishing package carries portable rights status and credits but not private provenance notes or path-like labels',()=>{
   let project=planScenes(createProject('PRIVATE SOURCE PROMPT','Rights package'),5);
   const scene=project.scenes[0].id;
-  project=addAsset(project,scene,{kind:'video',name:'licensed.mp4',sourcePath:'C:\\private\\licensed.mp4',duration:5,provider:'local-import'});
+  project=addAsset(project,scene,{kind:'video',name:'C:\\Users\\Abe\\Private\\licensed.mp4',sourcePath:'C:\\private\\licensed.mp4',duration:5,provider:'local-import'});
   const id=project.assets.at(-1).id;
   project=updateAsset(project,id,'keep');
   project=setAssetProvenance(project,id,{origin:'licensed',rightsStatus:'license-confirmed',sourceLabel:'C:\\Users\\Abe\\license.txt',credit:'Creator Name',note:'PRIVATE LICENSE NOTE'});
   const result=makePublishingPackage(project);
   const item=result.provenance.assets.find(asset=>asset.assetId===id);
+  const packagedAsset=result.assets.find(asset=>asset.id===id);
   assert.equal(result.provenance.complete,true);
   assert.equal(item.origin,'licensed');
   assert.equal(item.rightsStatus,'license-confirmed');
   assert.equal(item.credit,'Creator Name');
   assert.equal(item.sourceLabel,null);
+  assert.equal(item.name,'licensed.mp4');
+  assert.equal(packagedAsset.name,'licensed.mp4');
   assert.doesNotMatch(JSON.stringify(result),/PRIVATE SOURCE PROMPT|PRIVATE LICENSE NOTE|Users\\Abe|sourcePath/);
 });
 
