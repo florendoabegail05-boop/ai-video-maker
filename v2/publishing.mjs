@@ -74,6 +74,17 @@ function portableIssue(item={}){
   return {code,severity,message:ISSUE_MESSAGES[code]||'A verification issue was reported.'};
 }
 
+function verificationSnapshotConsistent(expected,actual,issues=[]){
+  if(issues.some(item=>item.severity==='error'))return false;
+  if(actual.hasVideo!==true)return false;
+  if(!(Number.isFinite(actual.width)&&actual.width>0&&Number.isFinite(actual.height)&&actual.height>0))return false;
+  if(Number.isFinite(expected.width)&&expected.width>0&&actual.width!==expected.width)return false;
+  if(Number.isFinite(expected.height)&&expected.height>0&&actual.height!==expected.height)return false;
+  if(!(Number.isFinite(actual.duration)&&actual.duration>0))return false;
+  if(actual.bytes!==null&&(!Number.isFinite(actual.bytes)||actual.bytes<1024))return false;
+  return true;
+}
+
 export function setPublishingDetails(project, values) {
   if (project.costMode !== 'FREE ONLY') throw Error('Publishing preparation requires FREE ONLY.');
   return revise(project, {...project, publishing: {...(project.publishing||{}), ...normalizeDetails(values)}});
@@ -85,6 +96,10 @@ export function setFinalVerification(project, verification) {
   if (verification.verified !== true) throw Error('Only a passed final-output verification can be saved as verified.');
   const currentSignature=renderSignature(project);
   if(!verification.renderSignature||verification.renderSignature!==currentSignature)throw Error('Final-output verification does not match the current render inputs. Re-verify the current final MP4.');
+  const expected=portableExpected(verification.expected);
+  const actual=portableActual(verification.actual);
+  const issues=Array.isArray(verification.issues)?verification.issues.map(portableIssue).slice(0,100):[];
+  if(!verificationSnapshotConsistent(expected,actual,issues))throw Error('Passed final-output verification facts are internally inconsistent. Re-verify the current final MP4.');
   const safe = {
     kind:'aivm-v2-final-output-manifest',
     schema:Number.isFinite(Number(verification.schema))?Number(verification.schema):1,
@@ -93,9 +108,9 @@ export function setFinalVerification(project, verification) {
     renderSignature:currentSignature,
     verifiedAt:portableVerifiedAt(verification.verifiedAt),
     verified:true,
-    expected:portableExpected(verification.expected),
-    actual:portableActual(verification.actual),
-    issues:Array.isArray(verification.issues)?verification.issues.map(portableIssue).slice(0,100):[],
+    expected,
+    actual,
+    issues,
     provider:portableProvider(verification.provider)
   };
   return revise(project,{...project,publishing:{...(project.publishing||{}),finalVerification:safe}});
@@ -117,13 +132,17 @@ function publishingVerification(project){
   const saved=project.publishing?.finalVerification;
   const freshness=verificationFreshness(project,saved);
   if(!freshness.fresh)return null;
+  const expected=portableExpected(saved.expected);
+  const actual=portableActual(saved.actual);
+  const issues=Array.isArray(saved.issues)?saved.issues.map(portableIssue).slice(0,100):[];
+  if(!verificationSnapshotConsistent(expected,actual,issues))return null;
   return {
     verifiedAt:portableVerifiedAt(saved.verifiedAt),
     projectRevision:finiteOrNull(saved.projectRevision),
     renderSignature:saved.renderSignature,
-    expected:portableExpected(saved.expected),
-    actual:portableActual(saved.actual),
-    issues:Array.isArray(saved.issues)?saved.issues.map(portableIssue).slice(0,100):[],
+    expected,
+    actual,
+    issues,
     provider:portableProvider(saved.provider)
   };
 }
@@ -131,7 +150,11 @@ function publishingVerification(project){
 export function finalVerificationStatus(project){
   const saved=project?.publishing?.finalVerification;
   const freshness=verificationFreshness(project,saved);
-  return {saved:!!saved,fresh:freshness.fresh,reason:freshness.reason,verifiedAt:portableVerifiedAt(saved?.verifiedAt),renderSignature:saved?.renderSignature||null,currentSignature:freshness.currentSignature};
+  const expected=portableExpected(saved?.expected);
+  const actual=portableActual(saved?.actual);
+  const issues=Array.isArray(saved?.issues)?saved.issues.map(portableIssue).slice(0,100):[];
+  const consistent=freshness.fresh&&verificationSnapshotConsistent(expected,actual,issues);
+  return {saved:!!saved,fresh:consistent,reason:consistent?'match':freshness.fresh?'verification-facts-inconsistent':freshness.reason,verifiedAt:portableVerifiedAt(saved?.verifiedAt),renderSignature:saved?.renderSignature||null,currentSignature:freshness.currentSignature};
 }
 
 // Export only portable, explicitly chosen metadata. Never include local paths,
@@ -154,7 +177,7 @@ export function makePublishingPackage(project) {
     'Metadata only: download the final MP4 and media files separately.',
     finalVerification
       ? 'Final MP4 deterministic media facts were verified for the current saved render inputs; visual realism, identity consistency, anatomy and flicker still require human review.'
-      : 'Final MP4 verification is missing or stale for the current render inputs.',
+      : 'Final MP4 verification is missing, stale or internally inconsistent for the current render inputs.',
     'Captions are manually entered scene text, not a speech transcript. Avoid adding these subtitles twice if the final video already has burned-in captions.'
   ];
   const missing = scenes.filter(scene => !scene.selectedClipId).map(scene => scene.order);
