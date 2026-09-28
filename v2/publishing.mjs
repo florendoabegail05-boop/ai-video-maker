@@ -1,6 +1,6 @@
 import {revise, validateProjectBackup, captionsForTimeline, reusableAsset, selectedProjectAudio} from './core.mjs';
 import {renderSignature,verificationFreshness} from './render-signature.mjs';
-import {portableProvenanceSummary} from './asset-provenance.mjs';
+import {portableProvenanceSummary,portableAssetName} from './asset-provenance.mjs';
 
 export function publishingDetails(project) {
   return {title: project.publishing?.title ?? project.name ?? '', description: project.publishing?.description ?? ''};
@@ -106,7 +106,7 @@ export function makePublishingPackage(project) {
     plannedDuration: start, finalVideoVerified: !!finalVerification, finalOutput:finalVerification, scenes,
     audio: Object.fromEntries(['music', 'voice'].map(role => [role, selectedProjectAudio(project, role)?.id || null])),
     assets: project.assets.map(asset => ({id: asset.id, sceneId: asset.sceneId, kind: asset.kind,
-      name: asset.name, provider: asset.provider || null, status: asset.status,
+      name: portableAssetName(asset.name)||asset.id, provider: asset.provider || null, status: asset.status,
       locked: !!asset.locked, reference: !!asset.reference})),
     provenance,
     captionsSrt: captionSrt(project), warnings,
