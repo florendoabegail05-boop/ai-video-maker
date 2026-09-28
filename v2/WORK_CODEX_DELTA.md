@@ -67,7 +67,6 @@ These changes were made from ChatGPT chat after the last known local Work/Codex 
    - `final-output.mjs` validates deterministic final-media facts: video stream presence, expected dimensions, planned duration tolerance, low-FPS warning and suspiciously tiny output.
    - It creates a portable manifest that intentionally excludes local paths, bridge URLs and media bytes.
    - It does **not** pretend to verify photorealism, identity consistency, anatomy, flicker or artistic quality.
-   - Publishing verification metadata can be patched only from a real final-output manifest.
 
 14. **Capability-derived FREE ONLY adapter registry**
    - `adapter-registry.mjs` derives available image/video/voice/music/SFX/lip-sync/upscale adapters only from reported capabilities.
@@ -78,10 +77,16 @@ These changes were made from ChatGPT chat after the last known local Work/Codex 
    - `recovery-store.mjs` persists bounded metadata-only recovery snapshots under a dedicated localStorage key and never duplicates media bytes.
    - `recovery-capability-ui.mjs` exposes manual recovery snapshots, safe pre-restore snapshots, project-ID-safe restore, snapshot deletion, and live FREE ONLY adapter registry display.
    - Restoring a snapshot first captures the current project state as `Before recovery restore` so the restore itself is reversible at the metadata level.
-   - `index.html` now loads the recovery/capability module and exposes `Recovery & Version Safety` plus `FREE ONLY Adapter Registry` panels.
-   - Adapter display is based only on the live bridge capability response and never labels unsupported routes as verified.
+   - `index.html` exposes `Recovery & Version Safety` plus `FREE ONLY Adapter Registry` panels.
 
-## Tests added in chat
+16. **Final MP4 verification + publishing integration**
+   - `final-output-ui.mjs` lets the owner select the downloaded final MP4 and reads browser-supported width, height, duration and file size without uploading the file.
+   - A passed manifest can be saved only to the same project ID; failed, malformed or cross-project manifests are refused.
+   - `publishing.mjs` preserves existing verification when title/description changes and exports `finalVideoVerified: true` only when a saved passed manifest exists.
+   - Publishing output includes only portable verification facts; no local path, media bytes or bridge URL is exported.
+   - The UI explicitly labels this as deterministic media-fact verification, **not** photorealism/flicker/anatomy/identity/lip-sync/audio-quality verification.
+
+## Tests added or extended in chat
 
 - `v2/continuity.test.mjs`
 - `v2/media-adapters.test.mjs`
@@ -94,6 +99,7 @@ These changes were made from ChatGPT chat after the last known local Work/Codex 
 - `v2/recovery-store.test.mjs`
 - `v2/final-output.test.mjs`
 - `v2/adapter-registry.test.mjs`
+- `v2/publishing.test.mjs` now covers saved final verification and preservation across publishing-detail edits.
 - `local-bridge/workflow-capabilities.test.mjs`
 
 ## Local verification required next
@@ -101,20 +107,23 @@ These changes were made from ChatGPT chat after the last known local Work/Codex 
 Run at minimum:
 
 ```powershell
-node --test v2/director.test.mjs v2/provider-router.test.mjs v2/capabilities.test.mjs v2/references.test.mjs v2/continuity.test.mjs v2/media-adapters.test.mjs v2/technical-qc.test.mjs v2/prompt-integration.test.mjs v2/export-presets.test.mjs v2/scene-audio.test.mjs v2/project-selection.test.mjs v2/recovery.test.mjs v2/recovery-store.test.mjs v2/final-output.test.mjs v2/adapter-registry.test.mjs v2/core.test.mjs v2/local-provider.test.mjs local-bridge/workflow-capabilities.test.mjs
+node --test v2/director.test.mjs v2/provider-router.test.mjs v2/capabilities.test.mjs v2/references.test.mjs v2/continuity.test.mjs v2/media-adapters.test.mjs v2/technical-qc.test.mjs v2/prompt-integration.test.mjs v2/export-presets.test.mjs v2/scene-audio.test.mjs v2/project-selection.test.mjs v2/recovery.test.mjs v2/recovery-store.test.mjs v2/final-output.test.mjs v2/adapter-registry.test.mjs v2/publishing.test.mjs v2/core.test.mjs v2/local-provider.test.mjs local-bridge/workflow-capabilities.test.mjs
 ```
 
 Then run the full V2/bridge/render/smoke suite from Priority 0 in the main handoff.
 
 Browser checks also required:
-- load `v2/index.html` through the supported local launcher and confirm all four browser modules load without console errors: `studio.mjs`, `studio-enhancements.mjs`, `audio-qc-ui.mjs`, `recovery-capability-ui.mjs`;
-- create two projects with the same display name and prove Character/World reference changes, QC, audio-plan edits, recovery capture and recovery restore all stay on the selected project ID;
-- create a recovery snapshot, modify scene metadata, restore the snapshot, confirm a pre-restore safety snapshot is created and no media bytes are duplicated or deleted;
-- reload the page and verify recovery history persists without inflating media storage;
-- run `Check verified adapters` with the bridge online and compare every displayed adapter against `/v1/capabilities`; unsupported voice/music/SFX/lip-sync/upscale routes must remain absent;
+- load `v2/index.html` through the supported local launcher and confirm all five browser modules load without console errors: `studio.mjs`, `studio-enhancements.mjs`, `audio-qc-ui.mjs`, `recovery-capability-ui.mjs`, `final-output-ui.mjs`;
+- create two projects with the same display name and prove Character/World reference changes, QC, audio-plan edits, recovery actions and final verification stay on the selected project ID;
+- create a recovery snapshot, modify scene metadata, restore it, confirm a pre-restore safety snapshot is created and no media bytes are duplicated/deleted;
+- reload and verify recovery history persists without inflating media storage;
+- run `Check verified adapters` with the bridge online and compare every displayed adapter against `/v1/capabilities`;
 - mark an image Character Reference, change it to World Reference, then clear it; original bytes must remain previewable/exportable;
 - confirm Assemble final MP4 is blocked only by real deterministic QC errors and becomes available after valid clips satisfy the gate;
-- confirm dialogue/audio-cue metadata survives save, reselect and page reload.
+- assemble/download a real 1080×1920 MP4, select that file in **Final MP4 verification**, and verify browser-readable width/height/duration/bytes are saved as a passed manifest;
+- select a wrong-resolution or wrong-duration MP4 and confirm it is refused as verified;
+- save/change publishing title or description after final verification and confirm verification remains attached to the same project;
+- export publishing JSON and confirm `finalVideoVerified` is true only for a saved passed manifest and no local paths are present.
 
 ## Work/Codex tasks that need the real laptop/bridge
 
@@ -123,7 +132,7 @@ Browser checks also required:
 3. Pass approved character/world reference paths only when the workflow declares the matching capability and the path is already a safe local imported/generated asset.
 4. Add integration tests proving unsupported workflows receive zero reference paths.
 5. Re-run the verified 1080p FFmpeg render route and confirm no regression.
-6. Feed real `ffprobe`/bridge media metadata into `final-output.mjs`; only then may the publishing package record `finalVideoVerified: true`.
+6. Cross-check the browser final-output manifest against real `ffprobe`/bridge media metadata. If they disagree, bridge/ffprobe wins; add FPS/audio-stream facts only from real inspection rather than guessing them in browser code.
 7. Verify localStorage snapshot size remains reasonable on real projects. If metadata growth is too large, move recovery metadata to IndexedDB, but do not duplicate media bytes.
 8. Run `adapter-registry.mjs` against the live capability response and fix any shape mismatch; never mark a route verified just to make the UI look complete.
 9. Only after real render tests, consider exposing 16:9 / 1:1 presets or further export options.
