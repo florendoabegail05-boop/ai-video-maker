@@ -79,6 +79,28 @@ test('image dispatch is rejected when bible inputs change even if the scene itse
   assert.equal(result.reason,'stale-generation:generation-inputs-changed');
 });
 
+test('motion dispatch carries the exact guarded source image id',()=>{
+  const r=report();
+  const p={
+    ...project(),
+    scenes:[{...project().scenes[0],assetIds:['img-1']}],
+    assets:[{id:'img-1',sceneId:'scene-1',kind:'image',name:'source.png',hasFile:true,size:100,sourcePath:'C:\\AIVM\\source.png',provider:'basic-local-still',parentAssetId:null,status:'candidate',locked:false,reference:false}]
+  };
+  let s=session(p,r);
+  s={...s,ledger:updateDraftJobState(s.ledger,'director:project','RUNNING')};
+  s={...s,ledger:updateDraftJobState(s.ledger,'director:project','DONE')};
+  s={...s,ledger:updateDraftJobState(s.ledger,'image:scene-1','RUNNING')};
+  s={...s,ledger:updateDraftJobState(s.ledger,'image:scene-1','DONE')};
+  const prepared=prepareNextOneClickDispatch(p,r,s,{creation:{wantAudio:false,wantMotion:true,wantCaptions:true}});
+  assert.equal(prepared.prepared,true);
+  assert.equal(prepared.envelope.jobType,'motion');
+  assert.equal(prepared.envelope.payload.sourceAssetId,'img-1');
+  assert.equal(prepared.envelope.generationGuard.parentAssetId,'img-1');
+  assert.equal(validateOneClickDispatch(p,prepared.envelope).ok,true);
+  const tampered={...prepared.envelope,payload:{...prepared.envelope.payload,sourceAssetId:'other-image'}};
+  assert.equal(validateOneClickDispatch(p,tampered).reason,'motion-source-guard-mismatch');
+});
+
 test('paid or future-provider routes are never accepted by the dispatch validator',()=>{
   const p=project(),r=report(),s=session(p,r);
   const prepared=prepareNextOneClickDispatch(p,r,s,{creation:{wantAudio:false,wantMotion:true,wantCaptions:true}});
