@@ -7,15 +7,17 @@ function approvalFlagsComplete(approval){
     &&approval?.platformSettingsReviewed===true;
 }
 
-export function currentReleaseContext(project,{ownerReleaseApproval=null}={}){
+export function currentReleaseContext(project,{ownerReleaseApproval=null,factSets=[],technical={}}={}){
   if(!project?.id)throw Error('Project is required.');
   const provenance=provenanceAudit(project);
   const freshness=ownerReleaseApproval
-    ?verifiedReleaseApprovalFreshness(project,ownerReleaseApproval)
+    ?verifiedReleaseApprovalFreshness(project,ownerReleaseApproval,factSets,{technical})
     :{fresh:false,reason:'missing-or-invalid'};
   const approvalValid=ownerReleaseApproval?.kind==='aivm-v2-verified-owner-release-approval'
     &&ownerReleaseApproval.projectId===project.id
     &&ownerReleaseApproval.technicalVerifiedAtApproval===true
+    &&typeof ownerReleaseApproval.technicalVerificationSignature==='string'
+    &&ownerReleaseApproval.technicalVerificationSignature.length>0
     &&approvalFlagsComplete(ownerReleaseApproval);
   const approvalCurrent=approvalValid&&freshness.fresh===true;
 
@@ -37,6 +39,7 @@ export function currentReleaseContext(project,{ownerReleaseApproval=null}={}){
       approvedAt:approvalCurrent?ownerReleaseApproval.approvedAt||null:null,
       releaseSignature:approvalCurrent?ownerReleaseApproval.releaseSignature||null:null,
       renderSignature:approvalCurrent?ownerReleaseApproval.renderSignature||null:null,
+      technicalVerificationSignature:approvalCurrent?ownerReleaseApproval.technicalVerificationSignature||null:null,
       technicalVerifiedAtApproval:approvalCurrent,
       source:'verified-owner-release-approval'
     },
@@ -44,6 +47,6 @@ export function currentReleaseContext(project,{ownerReleaseApproval=null}={}){
     provenanceSummary:provenance.summary,
     publishAuthorized:false,
     automaticPublishingAllowed:false,
-    note:'Rights readiness comes from current project provenance. One-click owner approval counts only when a verified owner release-approval record was created after trusted machine-class final verification and remains fresh for the current release inputs. Legacy or arbitrary approval booleans do not satisfy this boundary.'
+    note:'Rights readiness comes from current project provenance. One-click owner approval counts only when a verified owner release-approval record remains bound to the current release inputs and the current trusted technical-evidence stamp. Legacy records, stale evidence or arbitrary approval booleans do not satisfy this boundary.'
   };
 }
