@@ -16,9 +16,9 @@ function project(rightsStatus='owner-confirmed'){
     publishing:{title:'Test',description:'Test description'}
   };
 }
-function factsFor(p){return [machineFinalMediaFacts(p,{width:1080,height:1920,duration:5},'ffprobe')];}
-function verifiedApprovalFor(p,overrides={}){
-  const approval=makeVerifiedOwnerReleaseApproval(p,factsFor(p),{
+function factsFor(p,duration=5){return [machineFinalMediaFacts(p,{width:1080,height:1920,duration},'ffprobe')];}
+function verifiedApprovalFor(p,facts=factsFor(p),overrides={}){
+  const approval=makeVerifiedOwnerReleaseApproval(p,facts,{
     visualAudioApproved:true,
     rightsApproved:true,
     platformSettingsReviewed:true
@@ -35,21 +35,44 @@ test('rights readiness is derived from project provenance instead of a caller bo
   assert.equal(context.publishAuthorized,false);
 });
 
-test('a complete fresh verified owner release approval is recognized as current',()=>{
+test('a complete fresh verified owner release approval is recognized only with matching current technical facts',()=>{
   const p=project();
-  const context=currentReleaseContext(p,{ownerReleaseApproval:verifiedApprovalFor(p)});
+  const facts=factsFor(p);
+  const context=currentReleaseContext(p,{ownerReleaseApproval:verifiedApprovalFor(p,facts),factSets:facts});
   assert.equal(context.rights.complete,true);
   assert.equal(context.ownerApproval.current,true);
   assert.equal(context.ownerApproval.status,'approved-current');
   assert.equal(context.ownerApproval.technicalVerifiedAtApproval,true);
+  assert.match(context.ownerApproval.technicalVerificationSignature,/^tvs1-/);
   assert.equal(context.approvalFreshness.fresh,true);
+});
+
+test('missing current technical facts makes an otherwise matching approval non-current',()=>{
+  const p=project();
+  const facts=factsFor(p);
+  const approval=verifiedApprovalFor(p,facts);
+  const context=currentReleaseContext(p,{ownerReleaseApproval:approval,factSets:[]});
+  assert.equal(context.ownerApproval.current,false);
+  assert.equal(context.ownerApproval.reason,'technical-verification-not-current');
+  assert.equal(context.publishAuthorized,false);
+});
+
+test('changed current technical evidence makes earlier verified approval stale',()=>{
+  const p=project();
+  const facts=factsFor(p,5);
+  const approval=verifiedApprovalFor(p,facts);
+  const changedFacts=factsFor(p,5.1);
+  const context=currentReleaseContext(p,{ownerReleaseApproval:approval,factSets:changedFacts});
+  assert.equal(context.ownerApproval.current,false);
+  assert.equal(context.ownerApproval.reason,'technical-evidence-changed');
 });
 
 test('rights metadata change makes an earlier verified approval stale',()=>{
   const p=project();
-  const approval=verifiedApprovalFor(p);
+  const facts=factsFor(p);
+  const approval=verifiedApprovalFor(p,facts);
   const changed={...p,assets:p.assets.map(asset=>({...asset,provenance:{...asset.provenance,credit:'Changed credit'}}))};
-  const context=currentReleaseContext(changed,{ownerReleaseApproval:approval});
+  const context=currentReleaseContext(changed,{ownerReleaseApproval:approval,factSets:factsFor(changed)});
   assert.equal(context.ownerApproval.current,false);
   assert.equal(context.approvalFreshness.fresh,false);
   assert.equal(context.approvalFreshness.reason,'release-inputs-changed');
@@ -57,7 +80,8 @@ test('rights metadata change makes an earlier verified approval stale',()=>{
 
 test('matching release signature is insufficient when explicit owner confirmation flags are incomplete',()=>{
   const p=project();
-  const context=currentReleaseContext(p,{ownerReleaseApproval:verifiedApprovalFor(p,{platformSettingsReviewed:false})});
+  const facts=factsFor(p);
+  const context=currentReleaseContext(p,{ownerReleaseApproval:verifiedApprovalFor(p,facts,{platformSettingsReviewed:false}),factSets:facts});
   assert.equal(context.ownerApproval.current,false);
   assert.equal(context.publishAuthorized,false);
   assert.equal(context.automaticPublishingAllowed,false);
@@ -73,7 +97,7 @@ test('legacy owner approval record cannot bypass verified one-click release appr
     rightsApproved:true,
     platformSettingsReviewed:true
   };
-  const context=currentReleaseContext(p,{ownerReleaseApproval:legacy});
+  const context=currentReleaseContext(p,{ownerReleaseApproval:legacy,factSets:factsFor(p)});
   assert.equal(context.ownerApproval.current,false);
   assert.equal(context.ownerApproval.reason,'verified-approval-required');
   assert.equal(context.publishAuthorized,false);
