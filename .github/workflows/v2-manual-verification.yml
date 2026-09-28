@@ -1,0 +1,73 @@
+name: V2 Manual Verification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v2-manual-verification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify-v2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Show verification environment
+        run: |
+          node --version
+          git rev-parse HEAD
+          command -v ffmpeg || true
+          command -v ffprobe || true
+
+      - name: V2 focused execution and release tests
+        run: |
+          node --test \
+            v2/generation-input-guard.test.mjs \
+            v2/one-click-dispatch-envelope.test.mjs \
+            v2/one-click-result-processor.test.mjs \
+            v2/one-click-media-commit.test.mjs \
+            v2/one-click-retry-dispatch.test.mjs \
+            v2/one-click-manual-resolution.test.mjs \
+            v2/draft-execution-ledger.test.mjs \
+            v2/one-click-orchestrator.test.mjs \
+            v2/one-click-status-view.test.mjs \
+            v2/verification-evidence.test.mjs \
+            v2/final-media-facts.test.mjs \
+            v2/final-verification-gate.test.mjs \
+            v2/technical-verification-signature.test.mjs \
+            v2/output-readiness-summary.test.mjs \
+            v2/verified-release-approval.test.mjs \
+            v2/current-release-context.test.mjs
+
+      - name: Full V2 and local-bridge Node regression
+        run: node --test v2/*.test.mjs local-bridge/*.test.mjs
+
+      - name: Safety grep — no automatic publish authority in V2
+        run: |
+          if grep -RniE "publishAuthorized[[:space:]]*:[[:space:]]*true|automaticPublishingAllowed[[:space:]]*:[[:space:]]*true" v2 --include='*.mjs'; then
+            echo 'Unsafe publish authority found in V2 source.'
+            exit 1
+          fi
+
+      - name: Safety grep — no paid-route enablement in V2
+        run: |
+          if grep -RniE "paidProviderAllowed[[:space:]]*:[[:space:]]*true" v2 --include='*.mjs'; then
+            echo 'Unsafe paid-provider permission found in V2 source.'
+            exit 1
+          fi
+
+      - name: Verification note
+        run: |
+          echo 'This workflow validates repository code only.'
+          echo 'It does not replace the owner-machine browser, FFmpeg/FFprobe final-file, ComfyUI workflow, or hardware verification required by the V2 handoff.'
