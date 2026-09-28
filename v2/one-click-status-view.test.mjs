@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {oneClickStatusView} from './one-click-status-view.mjs';
+import {oneClickStatusView,ownerApprovalReviewDetail} from './one-click-status-view.mjs';
 import {createOneClickSession} from './one-click-orchestrator.mjs';
 import {machineFinalMediaFacts} from './final-media-facts.mjs';
 
@@ -103,4 +103,15 @@ test('skipped optional jobs stay outside required progress totals',()=>{
   assert.equal(view.creationProgress.optional,optionalIds.size);
   assert.equal(view.creationProgress.actionable,session.ledger.entries.length-optionalIds.size);
   assert.equal(view.progress,0);
+});
+
+test('owner approval refresh reasons give specific safe review guidance',()=>{
+  assert.match(ownerApprovalReviewDetail('release-inputs-changed'),/metadata or provenance changed/i);
+  assert.match(ownerApprovalReviewDetail('render-inputs-changed'),/render inputs changed/i);
+  assert.match(ownerApprovalReviewDetail('technical-evidence-changed'),/technical evidence changed/i);
+  assert.match(ownerApprovalReviewDetail('technical-verification-not-current'),/re-establish verification/i);
+  assert.match(ownerApprovalReviewDetail('technical-verification-signature-missing'),/new verified owner approval/i);
+  assert.match(ownerApprovalReviewDetail('verified-approval-required'),/older approval record/i);
+  assert.match(ownerApprovalReviewDetail('owner-confirmations-incomplete'),/all explicit owner release confirmations/i);
+  assert.match(ownerApprovalReviewDetail('missing-or-invalid'),/explicit verified owner release approval/i);
 });
