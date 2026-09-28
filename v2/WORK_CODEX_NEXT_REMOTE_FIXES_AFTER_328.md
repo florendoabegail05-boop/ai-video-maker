@@ -66,15 +66,27 @@ Release signatures now include each asset's normalized provenance origin, rights
 
 `provenanceAudit` keeps the normalized source label and internal provenance note so release signing can see them.
 
-### Portable provenance stays useful without leaking local path-like labels
+### Portable provenance and publishing metadata do not leak path-like asset labels
 - `v2/asset-provenance.mjs`
 - `v2/asset-provenance.test.mjs`
 - `v2/publishing.mjs`
 - `v2/publishing.test.mjs`
 
-The portable provenance summary now preserves safe human-readable source labels and credits, but local path-like source labels (for example `C:\\Users\\...`, UNC paths, `file:` paths, or absolute local paths) are replaced with `null`. Internal provenance notes remain excluded from portable output.
+The portable provenance summary preserves safe human-readable source labels and credits, but local path-like source labels are replaced with `null`. Asset display names are also sanitized through `portableAssetName`: Windows paths, Unix paths, `file:` URLs and URL-like names keep only a portable basename. The same sanitizer is used by `makePublishingPackage()` so an asset whose internal name accidentally contains `C:\\Users\\...` cannot copy that local path into the portable package.
 
-`makePublishingPackage()` now includes this portable provenance summary and adds a clear warning when asset rights/source review is incomplete. The package must continue excluding project prompts, local source paths, private provenance notes, bridge/output paths, media bytes, and automatic publish authority.
+Internal provenance notes remain excluded. The package must continue excluding project prompts, local source paths, private provenance notes, bridge/output paths, media bytes, and automatic publish authority.
+
+### Final-output provider labels are portable only
+- `v2/final-output.mjs`
+- `v2/final-output.test.mjs`
+
+`makeFinalOutputManifest()` now keeps simple provider labels such as `ffmpeg` or `bridge-local`, but drops provider/encoder values that look like local executable paths, absolute paths or URL-like values. This keeps the manifest's existing promise that local paths and bridge URLs are excluded.
+
+### Owner approval refresh reasons are explicit in the status view
+- `v2/one-click-status-view.mjs`
+- `v2/one-click-status-view.test.mjs`
+
+When a previously recorded owner approval is not current, the presentation layer now distinguishes release metadata/provenance changes, render-input changes, changed trusted technical evidence, missing current machine verification, missing technical-verification signature, legacy approval records, and incomplete owner confirmations. The next action remains conservative and publishing remains manual.
 
 ## Required focused rerun after reconciliation
 
@@ -93,7 +105,9 @@ node --test \
   v2/asset-provenance.test.mjs \
   v2/release-approval.test.mjs \
   v2/verified-release-approval.test.mjs \
-  v2/publishing.test.mjs
+  v2/publishing.test.mjs \
+  v2/final-output.test.mjs \
+  v2/one-click-status-view.test.mjs
 ```
 
 Then rerun the full regression:
