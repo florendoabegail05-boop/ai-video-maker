@@ -30,7 +30,7 @@ test('audio stream does not become native audio claim',()=>{
   assert.match(facts.note,/does not prove native generated audio/i);
 });
 
-test('reconciliation prefers machine facts and surfaces contradictions',()=>{
+test('reconciliation prefers explicit machine facts and surfaces material contradictions',()=>{
   const p=project();
   const browser=browserFinalMediaFacts(p,{width:720,height:1280,duration:5});
   const machine=machineFinalMediaFacts(p,{width:1080,height:1920,duration:5,fps:30,audioStream:false},'ffprobe');
@@ -40,6 +40,54 @@ test('reconciliation prefers machine facts and surfaces contradictions',()=>{
   assert.equal(out.hasContradictions,true);
   assert.ok(out.contradictions.some(item=>item.field==='width'));
   assert.equal(out.publishAuthorized,false);
+});
+
+test('browser dimensions and duration fill current trusted gaps when machine evidence is unknown',()=>{
+  const p=project();
+  const browser=browserFinalMediaFacts(p,{width:1080,height:1920,duration:5,fileSize:123,mimeType:'video/mp4'});
+  const machine=machineFinalMediaFacts(p,{width:null,height:null,duration:null,fps:30,audioStream:null},'ffprobe');
+  const out=reconcileFinalMediaFacts(p,machine,browser);
+  assert.equal(out.selected.width.source,'browser');
+  assert.equal(out.selected.width.value,true);
+  assert.equal(out.selected.height.source,'browser');
+  assert.equal(out.selected.duration.source,'browser');
+  assert.equal(out.selected.fileSize.source,'browser');
+  assert.equal(out.selected.mimeType.source,'browser');
+  assert.equal(out.selected.fps.source,'ffprobe');
+});
+
+test('machine-only technical fields never fall back to browser facts',()=>{
+  const p=project();
+  const browser=browserFinalMediaFacts(p,{width:1080,height:1920,duration:5,mimeType:'video/mp4'});
+  const machine=machineFinalMediaFacts(p,{audioStream:null,fps:null,videoCodec:null,audioCodec:null,container:null},'ffprobe');
+  const out=reconcileFinalMediaFacts(p,browser,machine);
+  assert.equal(out.selected.audioStream.source,'ffprobe');
+  assert.equal(out.selected.audioStream.value,null);
+  assert.equal(out.selected.fps.source,'ffprobe');
+  assert.equal(out.selected.fps.value,null);
+  assert.equal(out.selected.videoCodec.value,null);
+  assert.equal(out.selected.audioCodec.value,null);
+  assert.equal(out.selected.container.value,null);
+});
+
+test('small browser versus ffprobe duration rounding does not create a contradiction',()=>{
+  const p=project();
+  const browser=browserFinalMediaFacts(p,{duration:5});
+  const machine=machineFinalMediaFacts(p,{duration:5.01},'ffprobe');
+  const out=reconcileFinalMediaFacts(p,browser,machine);
+  assert.equal(out.hasContradictions,false);
+  assert.equal(out.durationContradictionToleranceSeconds,0.05);
+});
+
+test('material browser versus ffprobe duration disagreement remains a contradiction',()=>{
+  const p=project();
+  const browser=browserFinalMediaFacts(p,{duration:5});
+  const machine=machineFinalMediaFacts(p,{duration:5.2},'ffprobe');
+  const out=reconcileFinalMediaFacts(p,browser,machine);
+  assert.equal(out.hasContradictions,true);
+  const duration=out.contradictions.find(item=>item.field==='duration');
+  assert.ok(duration);
+  assert.ok(duration.deltaSeconds>out.durationContradictionToleranceSeconds);
 });
 
 test('stale render-bound fact sets are ignored',()=>{
