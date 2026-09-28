@@ -41,6 +41,14 @@ When retry is denied, keep conservative failure routing from the classifier. Mis
 
 When the project changed after motion dispatch and the executor result reports a different parent image, prefer `stale-generation:*` over a generic `stale-dispatch:*` result. On an otherwise current project, simply naming a different parent still remains `motion-parent-mismatch`. Do not weaken the exact guarded source-image requirement.
 
+### Ledger result asset IDs survive metadata-only updates
+- `v2/draft-execution-ledger.mjs`
+- `v2/draft-execution-ledger.test.mjs`
+
+`updateDraftJobState()` no longer clears an existing `resultAssetIds` list merely because a caller updates state/message metadata without supplying a `resultAssetIds` field. Omission means preserve the current normalized IDs; an explicitly supplied array still replaces the list, and an explicit empty array clears it. This prevents post-registration/status-only updates from silently forgetting which assets a completed job produced.
+
+Keep the existing completed-job reopening guard and attempt semantics unchanged.
+
 ### Known-invalid technical values are distinct from missing evidence
 - `v2/final-verification-gate.mjs`
 - `v2/final-verification-gate.test.mjs`
@@ -92,6 +100,7 @@ When a previously recorded owner approval is not current, the presentation layer
 
 ```bash
 node --test \
+  v2/draft-execution-ledger.test.mjs \
   v2/job-dependency-scheduler.test.mjs \
   v2/final-media-facts.test.mjs \
   v2/final-verification-gate.test.mjs \
