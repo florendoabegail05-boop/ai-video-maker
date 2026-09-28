@@ -57,6 +57,23 @@ These changes were made from ChatGPT chat after the last known local Work/Codex 
    - Unsupported reference roles are stripped from payloads rather than forwarded.
    - This module is intentionally not yet wired into `server.mjs`; Work/Codex must verify the real workflow shape before enabling reference-file forwarding.
 
+12. **Non-destructive recovery snapshot foundation**
+   - `recovery.mjs` creates deep-cloned recovery snapshots without mutating the live project.
+   - Snapshot collections are bounded, project-scoped and ID-safe.
+   - Restore refuses cross-project snapshots and records recovery provenance.
+   - Locked assets remain locked inside snapshots; no media file is deleted or overwritten.
+
+13. **Final-output verification manifest foundation**
+   - `final-output.mjs` validates deterministic final-media facts: video stream presence, expected dimensions, planned duration tolerance, low-FPS warning and suspiciously tiny output.
+   - It creates a portable manifest that intentionally excludes local paths, bridge URLs and media bytes.
+   - It does **not** pretend to verify photorealism, identity consistency, anatomy, flicker or artistic quality.
+   - Publishing verification metadata can be patched only from a real final-output manifest.
+
+14. **Capability-derived FREE ONLY adapter registry**
+   - `adapter-registry.mjs` derives available image/video/voice/music/SFX/lip-sync/upscale adapters only from reported capabilities.
+   - Unsupported or unverified routes do not appear as available.
+   - This is a discovery layer only; it does not auto-download models or enable paid providers.
+
 ## Tests added in chat
 
 - `v2/continuity.test.mjs`
@@ -66,6 +83,9 @@ These changes were made from ChatGPT chat after the last known local Work/Codex 
 - `v2/export-presets.test.mjs`
 - `v2/scene-audio.test.mjs`
 - `v2/project-selection.test.mjs`
+- `v2/recovery.test.mjs`
+- `v2/final-output.test.mjs`
+- `v2/adapter-registry.test.mjs`
 - `local-bridge/workflow-capabilities.test.mjs`
 
 ## Local verification required next
@@ -73,7 +93,7 @@ These changes were made from ChatGPT chat after the last known local Work/Codex 
 Run at minimum:
 
 ```powershell
-node --test v2/director.test.mjs v2/provider-router.test.mjs v2/capabilities.test.mjs v2/references.test.mjs v2/continuity.test.mjs v2/media-adapters.test.mjs v2/technical-qc.test.mjs v2/prompt-integration.test.mjs v2/export-presets.test.mjs v2/scene-audio.test.mjs v2/project-selection.test.mjs v2/core.test.mjs v2/local-provider.test.mjs local-bridge/workflow-capabilities.test.mjs
+node --test v2/director.test.mjs v2/provider-router.test.mjs v2/capabilities.test.mjs v2/references.test.mjs v2/continuity.test.mjs v2/media-adapters.test.mjs v2/technical-qc.test.mjs v2/prompt-integration.test.mjs v2/export-presets.test.mjs v2/scene-audio.test.mjs v2/project-selection.test.mjs v2/recovery.test.mjs v2/final-output.test.mjs v2/adapter-registry.test.mjs v2/core.test.mjs v2/local-provider.test.mjs local-bridge/workflow-capabilities.test.mjs
 ```
 
 Then run the full V2/bridge/render/smoke suite from Priority 0 in the main handoff.
@@ -93,8 +113,11 @@ Browser checks also required:
 3. Pass approved character/world reference paths only when the workflow declares the matching capability and the path is already a safe local imported/generated asset.
 4. Add integration tests proving unsupported workflows receive zero reference paths.
 5. Re-run the verified 1080p FFmpeg render route and confirm no regression.
-6. Only after real render tests, consider exposing 16:9 / 1:1 presets or further export options.
-7. Inspect actual hardware before enabling any local motion/voice/lip-sync model; do not download multi-GB models without owner approval.
+6. Feed real `ffprobe`/bridge media metadata into `final-output.mjs`; only then may the publishing package record `finalVideoVerified: true`.
+7. Decide where recovery snapshots should be persisted in-browser after checking storage limits and existing IndexedDB/localStorage behavior. Do not duplicate large media bytes in snapshots.
+8. Run `adapter-registry.mjs` against the live capability response and fix any shape mismatch; never mark a route verified just to make the UI look complete.
+9. Only after real render tests, consider exposing 16:9 / 1:1 presets or further export options.
+10. Inspect actual hardware before enabling any local motion/voice/lip-sync model; do not download multi-GB models without owner approval.
 
 ## Safety reminder
 
