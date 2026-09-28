@@ -12,7 +12,7 @@ function completeProject(){
   project=addAsset(project,scene.id,{kind:'video',name:'scene.mp4',hasFile:true,size:100000,duration:5,sourcePath:'/media/scene.mp4',provider:'local-import'});
   const assetId=project.assets.at(-1).id;
   project=updateAsset(project,assetId,'keep');
-  project=setAssetProvenance(project,assetId,{origin:'owner-created',rightsStatus:'owner-confirmed'});
+  project=setAssetProvenance(project,assetId,{origin:'owner-created',rightsStatus:'owner-confirmed',sourceLabel:'Owner camera',credit:'',note:'Original owner footage'});
   project=setPublishingDetails(project,{title:'Release test',description:'Owner-reviewed description'});
   const manifest=makeFinalOutputManifest(project,{video:{width:1080,height:1920},duration:5,bytes:2_000_000,provider:'browser-file-metadata'});
   project=setFinalVerification(project,manifest);
@@ -57,6 +57,23 @@ test('rights metadata changes make prior release approval stale',()=>{
   let project=completeProject();
   const approval=makeOwnerReleaseApproval(project,{visualAudioApproved:true,rightsApproved:true,platformSettingsReviewed:true});
   const assetId=project.assets[0].id;
-  project=setAssetProvenance(project,assetId,{origin:'licensed',rightsStatus:'license-confirmed',credit:'Updated credit'});
+  project=setAssetProvenance(project,assetId,{origin:'licensed',rightsStatus:'license-confirmed',sourceLabel:'Licensed library',credit:'Updated credit'});
   assert.equal(releaseApprovalFreshness(project,approval).fresh,false);
+});
+
+test('provenance source or note changes alone also stale prior approval',()=>{
+  let project=completeProject();
+  const assetId=project.assets[0].id;
+  const approval=makeOwnerReleaseApproval(project,{visualAudioApproved:true,rightsApproved:true,platformSettingsReviewed:true});
+  project=setAssetProvenance(project,assetId,{origin:'owner-created',rightsStatus:'owner-confirmed',sourceLabel:'Different owner source label',credit:'',note:'Original owner footage'});
+  let freshness=releaseApprovalFreshness(project,approval);
+  assert.equal(freshness.fresh,false);
+  assert.equal(freshness.reason,'release-inputs-changed');
+
+  project=completeProject();
+  const approval2=makeOwnerReleaseApproval(project,{visualAudioApproved:true,rightsApproved:true,platformSettingsReviewed:true});
+  project=setAssetProvenance(project,project.assets[0].id,{origin:'owner-created',rightsStatus:'owner-confirmed',sourceLabel:'Owner camera',credit:'',note:'Changed provenance note only'});
+  freshness=releaseApprovalFreshness(project,approval2);
+  assert.equal(freshness.fresh,false);
+  assert.equal(freshness.reason,'release-inputs-changed');
 });
