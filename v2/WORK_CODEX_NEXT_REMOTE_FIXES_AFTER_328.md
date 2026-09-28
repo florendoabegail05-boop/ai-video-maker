@@ -99,7 +99,15 @@ Internal provenance notes remain excluded. The package must continue excluding p
 
 `makePublishingPackage()` and `finalVerificationStatus()` also re-sanitize already-saved verification snapshots on read/export. This matters for older imported backups: even if a historical snapshot contains a local path/URL/private nested field, a current portable publishing package must not echo it merely because the render signature is still fresh.
 
-Do not weaken render-signature freshness or the existing rule that only a passed current final-output manifest can be saved as verified.
+### A `verified:true` flag cannot override inconsistent final-output facts
+- `v2/publishing.mjs`
+- `v2/final-verification-integrity.test.mjs`
+
+Before storing a passed final-output manifest, `setFinalVerification()` now checks the portable facts for internal consistency. A supposedly passed record is rejected if it contains an error issue, no verified video, non-positive/missing dimensions, dimensions that disagree with its configured expected target, non-positive duration, or an explicitly too-small file size.
+
+On read/export, an older saved snapshot with the current render signature but inconsistent facts is treated as not fresh for publishing (`verification-facts-inconsistent`) and is not exported as `finalVideoVerified:true`. This prevents an imported or mutated historical record from bypassing current deterministic verification simply by retaining `verified:true`.
+
+Do not weaken render-signature freshness or the stronger FFprobe/bridge evidence path used by the one-click release boundary.
 
 ### Owner approval refresh reasons are explicit in the status view
 - `v2/one-click-status-view.mjs`
@@ -127,6 +135,7 @@ node --test \
   v2/verified-release-approval.test.mjs \
   v2/publishing.test.mjs \
   v2/publishing-portability-regression.test.mjs \
+  v2/final-verification-integrity.test.mjs \
   v2/final-output.test.mjs \
   v2/one-click-status-view.test.mjs
 ```
