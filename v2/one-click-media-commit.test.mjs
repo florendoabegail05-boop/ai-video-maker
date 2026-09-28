@@ -53,6 +53,55 @@ test('successful image output is registered additively and session metadata is r
   assert.deepEqual(entry.resultAssetIds,[result.asset.id]);
 });
 
+test('workflow-owned image registration stays on the current plan and advances to motion',()=>{
+  const p=project(),r=report();
+  const s=afterDirector(p,r);
+  const prepared=prepareNextOneClickDispatch(p,r,s,options());
+  const result=commitOneClickGeneratedMedia(p,r,prepared.session,prepared.envelope,{
+    ok:true,
+    sourcePath:'C:\\AIVM\\media\\generated\\scene-1.png',
+    name:'scene-1.png',
+    size:1234
+  },options());
+  assert.equal(result.accepted,true);
+  assert.equal(result.execution.valid,true);
+  assert.notEqual(result.nextAction,'REPLAN');
+  assert.equal(result.nextAction,'RUN_NEXT_READY_JOB');
+  assert.equal(result.nextJob?.type,'motion');
+});
+
+test('workflow-owned image then motion registration advances without plan drift',()=>{
+  const r=report();
+  let p=project();
+  let s=afterDirector(p,r);
+  const imageDispatch=prepareNextOneClickDispatch(p,r,s,options());
+  const imageResult=commitOneClickGeneratedMedia(p,r,imageDispatch.session,imageDispatch.envelope,{
+    ok:true,
+    sourcePath:'C:\\AIVM\\media\\generated\\scene-1.png',
+    name:'scene-1.png',
+    size:1234
+  },options());
+  assert.equal(imageResult.accepted,true);
+  p=imageResult.project;
+  s=imageResult.session;
+  const motionDispatch=prepareNextOneClickDispatch(p,r,s,options());
+  assert.equal(motionDispatch.prepared,true);
+  assert.equal(motionDispatch.envelope.jobType,'motion');
+  const parentId=motionDispatch.envelope.payload.sourceAssetId;
+  const motionResult=commitOneClickGeneratedMedia(p,r,motionDispatch.session,motionDispatch.envelope,{
+    ok:true,
+    sourcePath:'C:\\AIVM\\media\\generated\\scene-motion.mp4',
+    name:'scene-motion.mp4',
+    duration:5,
+    parentAssetId:parentId
+  },options());
+  assert.equal(motionResult.accepted,true);
+  assert.equal(motionResult.execution.valid,true);
+  assert.notEqual(motionResult.nextAction,'REPLAN');
+  assert.equal(motionResult.nextAction,'RUN_NEXT_READY_JOB');
+  assert.equal(motionResult.nextJob?.type,'captions');
+});
+
 test('external URL output is rejected without project or session mutation',()=>{
   const p=project(),r=report();
   const s=afterDirector(p,r);
@@ -122,7 +171,6 @@ test('motion result naming a different parent than the dispatch is rejected',()=
   const guardedParent=p.assets.at(-1);
   p=addAsset(p,scene.id,{kind:'image',name:'alternate.png',hasFile:true,sourcePath:'C:\\AIVM\\media\\alternate.png',provider:'basic-local-still'});
   const alternateParent=p.assets.at(-1);
-  // Keep the first image so reusableAsset deterministically chooses the guarded source.
   p={...p,assets:p.assets.map(asset=>asset.id===guardedParent.id?{...asset,status:'kept'}:asset)};
   let s=afterDirector(p,r);
   const imageJob=`image:${scene.id}`;
@@ -187,7 +235,6 @@ test('motion registration refuses a stale requested parent image',()=>{
   s={...s,ledger:updateDraftJobState(s.ledger,imageJob,'RUNNING')};
   s={...s,ledger:updateDraftJobState(s.ledger,imageJob,'DONE')};
   const prepared=prepareNextOneClickDispatch(p,r,s,options());
-  // No reusable current image should be dispatched when the only source is stale.
   assert.equal(prepared.prepared,false);
   assert.equal(prepared.reason,'motion-source-image-missing');
 });
