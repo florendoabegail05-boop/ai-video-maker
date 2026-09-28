@@ -43,7 +43,9 @@ export function provenanceAudit(project){
       kind:asset.kind||'file',
       origin:provenance.origin,
       rightsStatus:provenance.rightsStatus,
+      sourceLabel:provenance.sourceLabel||null,
       credit:provenance.credit||null,
+      note:provenance.note||null,
       needsReview,
       message:confirmed
         ?'Owner-recorded provenance/rights status is present.'
@@ -68,7 +70,7 @@ export function portableProvenanceSummary(project){
     projectId:project?.id||null,
     complete:audit.complete,
     summary:audit.summary,
-    assets:audit.items.map(item=>({assetId:item.assetId,name:item.name,kind:item.kind,origin:item.origin,rightsStatus:item.rightsStatus,credit:item.credit,needsReview:item.needsReview})),
+    assets:audit.items.map(item=>({assetId:item.assetId,name:item.name,kind:item.kind,origin:item.origin,rightsStatus:item.rightsStatus,sourceLabel:item.sourceLabel,credit:item.credit,needsReview:item.needsReview})),
     note:audit.note
   };
 }
