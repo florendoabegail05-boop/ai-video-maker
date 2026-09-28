@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {createProject, planScenes, addAsset, updateAsset, moveScene, setSceneCaption, undoProject, addProjectAudio} from './core.mjs';
 import {setPublishingDetails, publishingDetails, captionSrt, makePublishingPackage, setFinalVerification} from './publishing.mjs';
 import {makeFinalOutputManifest} from './final-output.mjs';
+import {setAssetProvenance} from './asset-provenance.mjs';
 
 test('publishing details persist in revisions and undo without changing approved assets', () => {
   let project = planScenes(createProject('A quiet garden', 'Garden'), 10);
@@ -49,8 +50,27 @@ test('package records approved clip selection and audio without local paths or f
   assert.equal(result.audio.music, project.assets.at(-1).id);
   assert.equal(result.finalVideoVerified, false);
   assert.equal(result.costMode, 'FREE ONLY');
+  assert.equal(result.provenance.complete,false);
   assert.match(result.warnings.join(' '), /scene\(s\): 2/);
+  assert.match(result.warnings.join(' '), /rights\/source record/i);
   assert.doesNotMatch(JSON.stringify(result), /PRIVATE PROMPT|sourcePath|C:\\\\private|\/private\/|"history"/);
+});
+
+test('publishing package carries portable rights status and credits but not private provenance notes or path-like labels',()=>{
+  let project=planScenes(createProject('PRIVATE SOURCE PROMPT','Rights package'),5);
+  const scene=project.scenes[0].id;
+  project=addAsset(project,scene,{kind:'video',name:'licensed.mp4',sourcePath:'C:\\private\\licensed.mp4',duration:5,provider:'local-import'});
+  const id=project.assets.at(-1).id;
+  project=updateAsset(project,id,'keep');
+  project=setAssetProvenance(project,id,{origin:'licensed',rightsStatus:'license-confirmed',sourceLabel:'C:\\Users\\Abe\\license.txt',credit:'Creator Name',note:'PRIVATE LICENSE NOTE'});
+  const result=makePublishingPackage(project);
+  const item=result.provenance.assets.find(asset=>asset.assetId===id);
+  assert.equal(result.provenance.complete,true);
+  assert.equal(item.origin,'licensed');
+  assert.equal(item.rightsStatus,'license-confirmed');
+  assert.equal(item.credit,'Creator Name');
+  assert.equal(item.sourceLabel,null);
+  assert.doesNotMatch(JSON.stringify(result),/PRIVATE SOURCE PROMPT|PRIVATE LICENSE NOTE|Users\\Abe|sourcePath/);
 });
 
 test('passed final-output manifest is preserved when publishing details change and exported without local paths', () => {
