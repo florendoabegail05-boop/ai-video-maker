@@ -27,7 +27,7 @@ function afterDirector(p,r){
   return s;
 }
 
-test('successful image output is registered additively and session revision is rebased',()=>{
+test('successful image output is registered additively and session metadata is rebased',()=>{
   const p=project(),r=report();
   const s=afterDirector(p,r);
   const prepared=prepareNextOneClickDispatch(p,r,s,options());
@@ -43,9 +43,11 @@ test('successful image output is registered additively and session revision is r
   assert.equal(result.registeredMedia,true);
   assert.equal(result.project.assets.length,1);
   assert.equal(result.project.assets[0].kind,'image');
-  assert.equal(result.project.assets[0].provider,'fallback');
+  assert.equal(result.project.assets[0].provider,'basic-local-still');
   assert.equal(result.project.assets[0].status,'candidate');
   assert.equal(result.session.projectRevision,result.project.revision);
+  assert.equal(result.session.plan.projectRevision,result.project.revision);
+  assert.equal(result.session.ledger.projectRevision,result.project.revision);
   const entry=result.session.ledger.entries.find(item=>item.jobId===prepared.envelope.jobId);
   assert.equal(entry.state,'DONE');
   assert.deepEqual(entry.resultAssetIds,[result.asset.id]);
@@ -70,7 +72,7 @@ test('motion output derives a same-scene image parent and registers a new video 
   const r=report();
   let p=project();
   const scene=p.scenes[0];
-  p=addAsset(p,scene.id,{kind:'image',name:'source.png',hasFile:true,sourcePath:'C:\\AIVM\\media\\source.png',provider:'fallback'});
+  p=addAsset(p,scene.id,{kind:'image',name:'source.png',hasFile:true,sourcePath:'C:\\AIVM\\media\\source.png',provider:'basic-local-still'});
   let s=afterDirector(p,r);
   const imageJob=`image:${scene.id}`;
   s={...s,ledger:updateDraftJobState(s.ledger,imageJob,'RUNNING')};
@@ -86,6 +88,7 @@ test('motion output derives a same-scene image parent and registers a new video 
   assert.equal(result.accepted,true);
   assert.equal(result.registeredMedia,true);
   assert.equal(result.asset.kind,'video');
+  assert.equal(result.asset.provider,'ffmpeg-camera-motion');
   assert.equal(result.asset.parentAssetId,p.assets.at(-1).id);
   assert.equal(result.project.assets.at(-1).parentAssetId,p.assets.at(-1).id);
 });
@@ -106,7 +109,7 @@ test('motion registration refuses a stale requested parent image',()=>{
   const r=report();
   let p=project();
   const scene=p.scenes[0];
-  p=addAsset(p,scene.id,{kind:'image',name:'stale.png',hasFile:true,sourcePath:'C:\\AIVM\\media\\stale.png',provider:'fallback'});
+  p=addAsset(p,scene.id,{kind:'image',name:'stale.png',hasFile:true,sourcePath:'C:\\AIVM\\media\\stale.png',provider:'basic-local-still'});
   const parent=p.assets.at(-1);
   p={...p,assets:p.assets.map(asset=>asset.id===parent.id?{...asset,status:'needs regeneration'}:asset)};
   let s=afterDirector(p,r);
