@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createProject, planScenes, addAsset, updateAsset, moveScene, setSceneCaption, undoProject, addProjectAudio} from './core.mjs';
-import {setPublishingDetails, publishingDetails, captionSrt, makePublishingPackage} from './publishing.mjs';
+import {setPublishingDetails, publishingDetails, captionSrt, makePublishingPackage, setFinalVerification} from './publishing.mjs';
+import {makeFinalOutputManifest} from './final-output.mjs';
 
 test('publishing details persist in revisions and undo without changing approved assets', () => {
   let project = planScenes(createProject('A quiet garden', 'Garden'), 10);
@@ -50,6 +51,32 @@ test('package records approved clip selection and audio without local paths or f
   assert.equal(result.costMode, 'FREE ONLY');
   assert.match(result.warnings.join(' '), /scene\(s\): 2/);
   assert.doesNotMatch(JSON.stringify(result), /PRIVATE PROMPT|sourcePath|C:\\\\private|\/private\/|"history"/);
+});
+
+test('passed final-output manifest is preserved when publishing details change and exported without local paths', () => {
+  let project=planScenes(createProject('PRIVATE FINAL PROMPT','Verified video'),10);
+  project=setPublishingDetails(project,{title:'Verified video',description:'Ready for review'});
+  const manifest=makeFinalOutputManifest(project,{video:{width:1080,height:1920},duration:10,bytes:2_000_000,provider:'browser-file-metadata'});
+  assert.equal(manifest.verified,true);
+  project=setFinalVerification(project,manifest);
+  project=setPublishingDetails(project,{title:'Updated verified video',description:'Still verified'});
+  assert.equal(project.publishing.finalVerification.verified,true);
+  const pack=makePublishingPackage(project);
+  assert.equal(pack.finalVideoVerified,true);
+  assert.equal(pack.finalOutput.actual.width,1080);
+  assert.equal(pack.finalOutput.actual.height,1920);
+  assert.match(pack.warnings.join(' '),/deterministic media facts were verified/);
+  assert.doesNotMatch(JSON.stringify(pack),/PRIVATE FINAL PROMPT|sourcePath|bridgeUrl|outputPath/);
+});
+
+test('failed, wrong-project or malformed verification cannot be saved as verified',()=>{
+  const project=planScenes(createProject('Verify me','Verify'),5);
+  const failed=makeFinalOutputManifest(project,{video:{width:720,height:1280},duration:5,bytes:2_000_000});
+  assert.equal(failed.verified,false);
+  assert.throws(()=>setFinalVerification(project,failed),/Only a passed/);
+  const passed=makeFinalOutputManifest(project,{video:{width:1080,height:1920},duration:5,bytes:2_000_000});
+  assert.throws(()=>setFinalVerification(project,{...passed,projectId:'other-project'}),/different project/);
+  assert.throws(()=>setFinalVerification(project,{}),/invalid/);
 });
 
 test('invalid or paid projects and oversized metadata are refused', () => {
