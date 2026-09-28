@@ -30,22 +30,27 @@ export function finalVerificationGate(project,factSets=[],{
   const height=reconciliation.selected.height;
   const widthActual=width?.details?.actual??null;
   const heightActual=height?.details?.actual??null;
-  const dimensionsTrusted=width?.trusted===true&&height?.trusted===true&&width?.stale!==true&&height?.stale!==true&&width?.value===true&&height?.value===true;
-  if(!dimensionsTrusted){
+  const widthKnown=width?.trusted===true&&width?.stale!==true&&(width?.value===true||width?.value===false);
+  const heightKnown=height?.trusted===true&&height?.stale!==true&&(height?.value===true||height?.value===false);
+  if(!widthKnown||!heightKnown){
     add('dimensions','BLOCKED','Trusted current output dimensions are not yet verified.',{reason:'dimensions-unknown',expectedWidth,expectedHeight});
+  }else if(width?.value!==true||height?.value!==true){
+    add('dimensions','BLOCKED','Rendered dimensions are invalid or non-positive.',{reason:'dimensions-invalid',expectedWidth,expectedHeight,actualWidth:widthActual,actualHeight:heightActual});
   }else if(widthActual!==expectedWidth||heightActual!==expectedHeight){
     add('dimensions','BLOCKED',`Rendered dimensions are ${widthActual}×${heightActual}, expected ${expectedWidth}×${expectedHeight}.`,{reason:'dimensions-mismatch',expectedWidth,expectedHeight,actualWidth:widthActual,actualHeight:heightActual});
   }else add('dimensions','PASS',`Rendered dimensions match ${expectedWidth}×${expectedHeight}.`,{reason:'dimensions-match',actualWidth:widthActual,actualHeight:heightActual});
 
   const duration=reconciliation.selected.duration;
-  const durationTrusted=duration?.trusted===true&&duration?.stale!==true&&duration?.value===true;
+  const durationKnown=duration?.trusted===true&&duration?.stale!==true&&(duration?.value===true||duration?.value===false);
   const durationActual=duration?.details?.actual??null;
   const durationNumber=durationActual===null||durationActual===undefined||durationActual===''?null:Number(durationActual);
-  if(durationTrusted&&Number.isFinite(durationNumber)&&durationNumber>0){
-    add('duration','PASS','Rendered duration is available from current trusted evidence.',{reason:'duration-known',actual:durationNumber,source:duration.source||'unknown'});
-  }else if(durationTrusted){
+  if(!durationKnown){
+    add('duration','BLOCKED','Rendered duration is not verified by current trusted evidence.',{reason:'duration-unknown'});
+  }else if(duration?.value!==true||!Number.isFinite(durationNumber)||durationNumber<=0){
     add('duration','BLOCKED','Rendered duration must be greater than zero.',{reason:'duration-invalid',actual:Number.isFinite(durationNumber)?durationNumber:null,source:duration.source||'unknown'});
-  }else add('duration','BLOCKED','Rendered duration is not verified by current trusted evidence.',{reason:'duration-unknown'});
+  }else{
+    add('duration','PASS','Rendered duration is available from current trusted evidence.',{reason:'duration-known',actual:durationNumber,source:duration.source||'unknown'});
+  }
 
   const audio=evidenceState(reconciliation,'audioStream');
   if(requireAudioStream){
@@ -63,9 +68,11 @@ export function finalVerificationGate(project,factSets=[],{
     ['container','container','container',requireContainer]
   ]){
     const fact=reconciliation.selected[field];
-    const trusted=fact?.trusted===true&&fact?.stale!==true&&fact?.value===true;
-    if(required&&!trusted)add(id,'BLOCKED',`Current trusted ${label} evidence is required but missing.`,{reason:`${field}-unknown`});
-    else if(trusted)add(id,'PASS',`Current trusted ${label} evidence is available.`,{reason:`${field}-known`,actual:fact.details?.actual??null,source:fact.source||'unknown'});
+    const known=fact?.trusted===true&&fact?.stale!==true&&(fact?.value===true||fact?.value===false);
+    const verified=known&&fact?.value===true;
+    if(required&&!known)add(id,'BLOCKED',`Current trusted ${label} evidence is required but missing.`,{reason:`${field}-unknown`});
+    else if(required&&!verified)add(id,'BLOCKED',`Current trusted ${label} evidence is present but invalid.`,{reason:`${field}-invalid`,actual:fact?.details?.actual??null,source:fact?.source||'unknown'});
+    else if(verified)add(id,'PASS',`Current trusted ${label} evidence is available.`,{reason:`${field}-known`,actual:fact.details?.actual??null,source:fact.source||'unknown'});
     else add(id,'INFO',`${label[0].toUpperCase()+label.slice(1)} is not verified; it is not required by this gate.`,{reason:`${field}-optional-unknown`});
   }
 
@@ -81,6 +88,6 @@ export function finalVerificationGate(project,factSets=[],{
     blockerReasons:blocking.map(item=>item.reason||'unknown'),
     reconciliation,
     publishAuthorized:false,
-    note:'This gate verifies technical render facts only. It does not prove artistic quality, rights, platform eligibility, native AI audio, lip-sync quality, or publication readiness.'
+    note:'This gate verifies technical render facts only. It distinguishes missing evidence from known-invalid media values, and it does not prove artistic quality, rights, platform eligibility, native AI audio, lip-sync quality, or publication readiness.'
   };
 }
