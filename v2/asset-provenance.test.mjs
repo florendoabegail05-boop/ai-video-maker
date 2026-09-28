@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createProject,planScenes,addAsset} from './core.mjs';
-import {inferredAssetOrigin,setAssetProvenance,provenanceAudit,portableProvenanceSummary} from './asset-provenance.mjs';
+import {inferredAssetOrigin,setAssetProvenance,provenanceAudit,portableProvenanceSummary,portableAssetName} from './asset-provenance.mjs';
 
 test('origin inference distinguishes imported and local generated assets without inventing rights',()=>{
   let project=planScenes(createProject('A short story'),5);
@@ -64,6 +64,26 @@ test('portable provenance summary redacts path-like source labels but keeps them
   assert.equal(summary.assets.find(item=>item.assetId===first).sourceLabel,null);
   assert.equal(summary.assets.find(item=>item.assetId===second).sourceLabel,null);
   assert.doesNotMatch(JSON.stringify(summary),/Users\\Abe|\/home\/abe/);
+});
+
+test('portable asset names keep only a safe display basename from paths or URLs',()=>{
+  assert.equal(portableAssetName('C:\\Users\\Abe\\Videos\\private-final.mp4'),'private-final.mp4');
+  assert.equal(portableAssetName('/home/abe/private/final.png'),'final.png');
+  assert.equal(portableAssetName('file:///C:/Users/Abe/secret/audio.wav'),'audio.wav');
+  assert.equal(portableAssetName('https://example.test/private/clip.mp4?token=SECRET'),'clip.mp4');
+  assert.equal(portableAssetName('Friendly clip name.mp4'),'Friendly clip name.mp4');
+  assert.equal(portableAssetName('C:'),null);
+});
+
+test('portable provenance summary sanitizes path-like asset names',()=>{
+  let project=planScenes(createProject('Story'),5);
+  const scene=project.scenes[0].id;
+  project=addAsset(project,scene,{kind:'video',name:'C:\\Users\\Abe\\Private\\family.mp4',sourcePath:'C:/private/family.mp4',provider:'local-import'});
+  const id=project.assets.at(-1).id;
+  project=setAssetProvenance(project,id,{origin:'owner-created',rightsStatus:'owner-confirmed'});
+  const summary=portableProvenanceSummary(project);
+  assert.equal(summary.assets[0].name,'family.mp4');
+  assert.doesNotMatch(JSON.stringify(summary),/Users\\Abe|C:\\\\Users/);
 });
 
 test('unknown or unrecognized values remain review-required rather than being upgraded',()=>{
