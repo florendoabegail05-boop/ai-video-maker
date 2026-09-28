@@ -14,104 +14,87 @@ These changes were made from ChatGPT chat after the last known local Work/Codex 
 2. **FREE ONLY provider router**
    - `provider-router.mjs` selects only verified FREE ONLY routes by default.
    - Paid-capable modes require explicit owner approval and are not connected.
-   - `capabilities.mjs` reports the selected image/motion route and separates verified claims from quality targets.
-   - `local-provider.mjs` checks the route plan before image/video generation and sends the selected route identifier to the loopback bridge.
+   - `capabilities.mjs` reports selected image/motion routes and separates verified claims from quality targets.
+   - `local-provider.mjs` checks the route plan before image/video generation.
 
 3. **Reference-library metadata + live controls**
    - `references.mjs` separates character and world image references.
-   - Reference images can be locked without deleting/replacing their original bytes.
-   - Bridge reference paths are returned only when a workflow explicitly declares the relevant reference capability.
-   - `core.mjs` includes approved reference labels in generated scene prompts.
-   - `studio-enhancements.mjs` adds a live Visual Reference Library panel where an existing image asset can be marked Character Reference, World Reference, or cleared. Marking a reference locks it by default and preserves the original file.
-   - `index.html` loads the enhancement module and exposes the reference panel.
+   - Reference images can be locked without deleting/replacing original bytes.
+   - `core.mjs` includes approved reference labels in scene-generation prompts.
+   - `studio-enhancements.mjs` exposes Character Reference / World Reference / Clear Reference controls.
 
 4. **Scene continuity-state foundation**
-   - `continuity.mjs` creates an explicit prior-scene/current-scene continuity state.
-   - Character/world/visual anchors are carried into the prompt without overwriting existing scene text or assets.
-   - `core.mjs` compiles the continuity block into future scene-generation prompts.
+   - `continuity.mjs` carries prior/current scene state plus character/world/visual anchors into future prompts.
 
 5. **Modular media adapter contracts**
-   - `media-adapters.mjs` defines descriptors and safety gates for image/video/voice/music/SFX/lip-sync/upscale adapters.
-   - FREE ONLY rejects non-free adapters and all unverified adapters.
+   - `media-adapters.mjs` defines descriptors and FREE ONLY verification gates for image/video/voice/music/SFX/lip-sync/upscale adapters.
    - Motion instructions include anti-flicker, anti-drift and preserve-source rules.
-   - Audio planning is separated into dialogue, voice, ambience, SFX and music cues.
-   - Quality risk profiles never invent native audio, lip-sync or temporal guarantees.
 
 6. **Deterministic technical QC + live preflight**
    - `technical-qc.mjs` checks missing files, broken scene links, short clips, aspect mismatch, caption overflow and locked-but-missing assets.
-   - QC does not replace or unlock assets.
-   - Future visual-AI QC remains explicitly unavailable unless an evaluator really ran.
-   - `studio-enhancements.mjs` exposes a Technical QC Preflight panel in the browser. It reports deterministic errors/warnings and explicitly states that visual AI QC is unavailable until a real evaluator runs.
+   - Live UI reports errors/warnings without auto-replacing assets.
 
 7. **Export preset / 4K honesty foundation**
-   - `export-presets.mjs` defines 9:16, 16:9 and 1:1 target presets without enabling unverified routes.
-   - 16:9 and 1:1 stay disabled until the bridge reports verified support.
-   - 4K stays unavailable unless both a 4K-capable route and verified upscale capability exist.
-   - Simple dimension scaling is labeled separately from detail-enhancing upscale.
+   - `export-presets.mjs` models 9:16, 16:9 and 1:1, but unverified routes stay disabled.
+   - 4K requires a genuinely capable route and verified output; simple scaling is not labeled detail-enhancing upscale.
 
-8. **Scene dialogue and audio-cue metadata foundation**
-   - `scene-audio.mjs` stores per-scene dialogue, voice assignment, ambience, SFX and music cues.
-   - Dialogue without a voice assignment is detectable before generation.
-   - Generated voice/music/SFX/lip-sync remain unavailable unless the capability report explicitly verifies a FREE ONLY route.
-   - Manual local audio import remains the dependable fallback.
+8. **Scene dialogue/audio planning + live UI**
+   - `scene-audio.mjs` stores dialogue, voice assignment, ambience, SFX and music cues.
+   - `audio-qc-ui.mjs` exposes per-scene planning and checks FREE ONLY generated-audio capability metadata.
+   - Manual audio import remains the dependable fallback.
 
-9. **Scene audio live UI + QC final-assembly gate**
-   - `audio-qc-ui.mjs` exposes per-scene dialogue, voice-label, ambience, SFX and music-cue editing in the browser without generating or uploading audio.
-   - The UI can query live bridge capability metadata and clearly labels each generated-audio route as available or not verified.
-   - Manual local audio import remains separate and intact.
-   - Final MP4 assembly is disabled when deterministic technical QC contains errors, and re-enabled when the current saved project passes the technical gate.
-   - QC gating never replaces, unlocks or deletes media; it only blocks the button and explains why.
-   - `index.html` now loads this module and shows Scene Audio Planner, generated-audio route status and QC-gate status.
+9. **QC final-assembly gate**
+   - Final MP4 assembly is disabled when deterministic technical QC contains errors and re-enabled when the saved project passes.
+   - The gate never unlocks, replaces or deletes media.
 
-10. **Integration tests already added for core modules**
-   - `continuity.test.mjs`
-   - `media-adapters.test.mjs`
-   - `technical-qc.test.mjs`
-   - `prompt-integration.test.mjs`
-   - `export-presets.test.mjs`
-   - `scene-audio.test.mjs`
+10. **Duplicate-project-safe enhancement selection**
+   - `project-selection.mjs` adds ID-first project selection and button decoration that follows the same updatedAt sort order as the main studio list.
+   - `studio-enhancements.mjs` now tracks `data-project-id` instead of reselecting by project name, preventing duplicate names from switching the wrong project.
+   - Ambiguous name/prompt fallback returns null instead of guessing.
+
+11. **Explicit ComfyUI reference-capability detection**
+   - `local-bridge/workflow-capabilities.mjs` recognizes reference support only when an allowlisted workflow explicitly declares markers such as `AIVM_CHARACTER_REFERENCE` or `AIVM_WORLD_REFERENCE`.
+   - Unsupported reference roles are stripped from payloads rather than forwarded.
+   - This module is intentionally not yet wired into `server.mjs`; Work/Codex must verify the real workflow shape before enabling reference-file forwarding.
+
+## Tests added in chat
+
+- `v2/continuity.test.mjs`
+- `v2/media-adapters.test.mjs`
+- `v2/technical-qc.test.mjs`
+- `v2/prompt-integration.test.mjs`
+- `v2/export-presets.test.mjs`
+- `v2/scene-audio.test.mjs`
+- `v2/project-selection.test.mjs`
+- `local-bridge/workflow-capabilities.test.mjs`
 
 ## Local verification required next
 
 Run at minimum:
 
 ```powershell
-node --test v2/director.test.mjs v2/provider-router.test.mjs v2/capabilities.test.mjs v2/references.test.mjs v2/continuity.test.mjs v2/media-adapters.test.mjs v2/technical-qc.test.mjs v2/prompt-integration.test.mjs v2/export-presets.test.mjs v2/scene-audio.test.mjs v2/core.test.mjs v2/local-provider.test.mjs
+node --test v2/director.test.mjs v2/provider-router.test.mjs v2/capabilities.test.mjs v2/references.test.mjs v2/continuity.test.mjs v2/media-adapters.test.mjs v2/technical-qc.test.mjs v2/prompt-integration.test.mjs v2/export-presets.test.mjs v2/scene-audio.test.mjs v2/project-selection.test.mjs v2/core.test.mjs v2/local-provider.test.mjs local-bridge/workflow-capabilities.test.mjs
 ```
 
 Then run the full V2/bridge/render/smoke suite from Priority 0 in the main handoff.
 
-Browser checks now also required:
-- load `v2/index.html` through the supported local launcher and confirm all three browser modules load without console errors: `studio.mjs`, `studio-enhancements.mjs`, `audio-qc-ui.mjs`;
-- select/create a project, import or generate an image, mark it as Character Reference, confirm it becomes locked and is still previewable/exportable;
-- change it to World Reference and then clear the reference, confirming original file bytes remain untouched;
-- run Technical QC before clips exist and confirm warnings/errors are visible without changing assets;
-- confirm **Assemble final MP4** is disabled while technical QC errors exist, then becomes enabled after valid clips/files satisfy the technical gate;
-- enter dialogue/voice/ambience/SFX/music values for one scene, save, reselect/reload the project and confirm the plan persists;
-- with dialogue present and no voice label, confirm the planner warns that voice assignment is missing while manual audio import remains available;
-- click **Check FREE ONLY audio routes** with the local bridge running and confirm unverified voice/music/SFX/lip-sync routes are not presented as available;
-- create enough valid clips to satisfy the current vertical route and confirm preflight updates correctly;
-- verify the enhancement modules reselect the current project after metadata changes and do not accidentally switch projects with duplicate names. If duplicate-name handling is ambiguous, fix it before calling the UI verified.
+Browser checks also required:
+- load `v2/index.html` through the supported local launcher and confirm `studio.mjs`, `studio-enhancements.mjs`, and `audio-qc-ui.mjs` load without console errors;
+- create two projects with the same display name and prove Character/World reference changes, QC, and audio-plan edits stay on the selected project ID;
+- mark an image Character Reference, change it to World Reference, then clear it; original bytes must remain previewable/exportable;
+- confirm Assemble final MP4 is blocked only by real deterministic QC errors and becomes available after valid clips satisfy the gate;
+- confirm dialogue/audio-cue metadata survives save, reselect and page reload;
+- query FREE ONLY audio routes and confirm unverified voice/music/SFX/lip-sync are never presented as available.
 
-Pay special attention to:
-- capability response shapes from the actual local bridge;
-- bridge behavior when the client includes `route` in image/video POST bodies;
-- browser imports after `core.mjs` gained `references.mjs` and `continuity.mjs` dependencies;
-- whether any older tests expected the previous capability row names;
-- no regression in the verified 1080p FFmpeg route;
-- no generation call when the FREE ONLY router reports `unavailable`;
-- technical QC behavior against real imported/rendered metadata;
-- `studio-enhancements.mjs` and `audio-qc-ui.mjs` project selection/reselection behavior;
-- no 16:9, 1:1 or 4K UI exposure until the corresponding render paths are actually tested.
+## Work/Codex tasks that need the real laptop/bridge
 
-## Next implementation targets after verification
-
-- Extend the allowlisted local ComfyUI bridge capability response with explicit `supportsCharacterReferences` / `supportsWorldReferences` metadata before passing any reference file path to a workflow.
-- Feed actual approved reference paths to only a verified compatible local workflow.
-- Add adapter discovery for truly free/local motion, voice, SFX/music and lip-sync only after hardware checks.
-- Integrate `export-presets.mjs` into UI only after 16:9 and 1:1 bridge assembly routes pass real render tests.
-- Strengthen final-export QC gating with bridge-returned media metadata after real local verification.
-- Add stronger project selection IDs/data attributes in the live UI so duplicate project names cannot confuse enhancement controls.
+1. Wire `workflow-capabilities.mjs` into the actual `/v1/capabilities` response for the allowlisted image workflow.
+2. Inspect the real configured ComfyUI workflow before deciding where reference file paths belong. Do **not** guess node IDs or silently rewrite arbitrary nodes.
+3. Pass approved character/world reference paths only when the workflow declares the matching capability and the path is already a safe local imported/generated asset.
+4. Add integration tests proving unsupported workflows receive zero reference paths.
+5. Re-run the verified 1080p FFmpeg render route and confirm no regression.
+6. Only after real render tests, consider exposing 16:9 / 1:1 presets or further export options.
+7. Inspect actual hardware before enabling any local motion/voice/lip-sync model; do not download multi-GB models without owner approval.
 
 ## Safety reminder
 
