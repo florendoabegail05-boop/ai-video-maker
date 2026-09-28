@@ -5,7 +5,7 @@ const BROWSER_OBSERVABLE_FIELDS=new Set(['width','height','duration','fileSize',
 const SOURCE_PRIORITY={ffprobe:3,bridge:2,browser:1,unknown:0};
 const DURATION_CONTRADICTION_TOLERANCE_SECONDS=0.05;
 
-function finite(value){const n=Number(value);return Number.isFinite(n)?n:null;}
+function finite(value){if(value===null||value===undefined||value==='')return null;const n=Number(value);return Number.isFinite(n)?n:null;}
 function text(value,max=120){const s=String(value??'').replace(/\s+/g,' ').trim();return s?s.slice(0,max):null;}
 function boolOrNull(value){return value===true||value===false?value:null;}
 function observedAt(value){return text(value,80);}
