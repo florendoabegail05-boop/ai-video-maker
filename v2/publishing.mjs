@@ -22,6 +22,58 @@ function portableProvider(value){
   return provider;
 }
 
+function finiteOrNull(value){
+  if(value===null||value===undefined||value==='')return null;
+  const number=Number(value);
+  return Number.isFinite(number)?number:null;
+}
+
+function portableVerifiedAt(value){
+  const text=String(value??'').trim();
+  if(!text)return null;
+  const parsed=Date.parse(text);
+  return Number.isFinite(parsed)?new Date(parsed).toISOString():null;
+}
+
+function portableExpected(value={}){
+  const aspect=String(value?.aspect??'').trim();
+  return {
+    aspect:/^\d{1,4}:\d{1,4}$/.test(aspect)?aspect:null,
+    width:finiteOrNull(value?.width),
+    height:finiteOrNull(value?.height),
+    fps:finiteOrNull(value?.fps),
+    duration:finiteOrNull(value?.duration)
+  };
+}
+
+function portableActual(value={}){
+  return {
+    width:finiteOrNull(value?.width),
+    height:finiteOrNull(value?.height),
+    fps:finiteOrNull(value?.fps),
+    duration:finiteOrNull(value?.duration),
+    bytes:finiteOrNull(value?.bytes),
+    hasVideo:typeof value?.hasVideo==='boolean'?value.hasVideo:null,
+    hasAudio:typeof value?.hasAudio==='boolean'?value.hasAudio:null
+  };
+}
+
+const ISSUE_MESSAGES={
+  NO_VIDEO_STREAM:'Final output has no verified video stream.',
+  OUTPUT_DIMENSIONS:'Final output dimensions do not match the configured target.',
+  OUTPUT_DURATION_UNKNOWN:'Final output duration was not verified.',
+  OUTPUT_DURATION_MISMATCH:'Final output duration does not match the planned duration.',
+  LOW_FPS:'Verified frame rate is below the preferred threshold.',
+  OUTPUT_TOO_SMALL:'Final output file is unexpectedly small.'
+};
+
+function portableIssue(item={}){
+  const rawCode=String(item.code??'').trim().toUpperCase();
+  const code=/^[A-Z0-9_]{1,80}$/.test(rawCode)?rawCode:'VERIFICATION_ISSUE';
+  const severity=['error','warning','info'].includes(String(item.severity||'').toLowerCase())?String(item.severity).toLowerCase():'warning';
+  return {code,severity,message:ISSUE_MESSAGES[code]||'A verification issue was reported.'};
+}
+
 export function setPublishingDetails(project, values) {
   if (project.costMode !== 'FREE ONLY') throw Error('Publishing preparation requires FREE ONLY.');
   return revise(project, {...project, publishing: {...(project.publishing||{}), ...normalizeDetails(values)}});
@@ -34,17 +86,17 @@ export function setFinalVerification(project, verification) {
   const currentSignature=renderSignature(project);
   if(!verification.renderSignature||verification.renderSignature!==currentSignature)throw Error('Final-output verification does not match the current render inputs. Re-verify the current final MP4.');
   const safe = {
-    kind: verification.kind,
-    schema: verification.schema,
-    projectId: verification.projectId,
-    projectRevision: verification.projectRevision,
-    renderSignature:verification.renderSignature,
-    verifiedAt: verification.verifiedAt,
-    verified: true,
-    expected: verification.expected,
-    actual: verification.actual,
-    issues: Array.isArray(verification.issues)?verification.issues.map(item=>({code:item.code,severity:item.severity,message:item.message})):[],
-    provider: portableProvider(verification.provider)
+    kind:'aivm-v2-final-output-manifest',
+    schema:Number.isFinite(Number(verification.schema))?Number(verification.schema):1,
+    projectId:project.id,
+    projectRevision:Number.isFinite(Number(verification.projectRevision))?Number(verification.projectRevision):null,
+    renderSignature:currentSignature,
+    verifiedAt:portableVerifiedAt(verification.verifiedAt),
+    verified:true,
+    expected:portableExpected(verification.expected),
+    actual:portableActual(verification.actual),
+    issues:Array.isArray(verification.issues)?verification.issues.map(portableIssue).slice(0,100):[],
+    provider:portableProvider(verification.provider)
   };
   return revise(project,{...project,publishing:{...(project.publishing||{}),finalVerification:safe}});
 }
@@ -69,9 +121,9 @@ function publishingVerification(project){
     verifiedAt:saved.verifiedAt||null,
     projectRevision:saved.projectRevision??null,
     renderSignature:saved.renderSignature,
-    expected:saved.expected||null,
-    actual:saved.actual||null,
-    issues:Array.isArray(saved.issues)?saved.issues:[],
+    expected:portableExpected(saved.expected),
+    actual:portableActual(saved.actual),
+    issues:Array.isArray(saved.issues)?saved.issues.map(portableIssue).slice(0,100):[],
     provider:portableProvider(saved.provider)
   };
 }
