@@ -41,12 +41,19 @@ When retry is denied, keep conservative failure routing from the classifier. Mis
 
 When the project changed after motion dispatch and the executor result reports a different parent image, prefer `stale-generation:*` over a generic `stale-dispatch:*` result. On an otherwise current project, simply naming a different parent still remains `motion-parent-mismatch`. Do not weaken the exact guarded source-image requirement.
 
+### Zero-duration final output is never technically ready
+- `v2/final-verification-gate.mjs`
+- `v2/final-verification-gate.test.mjs`
+
+A trusted duration fact is no longer sufficient by itself. The measured final duration must be finite and greater than zero. A zero-length render yields `duration-invalid` and must not proceed to rights review or owner approval.
+
 ## Required focused rerun after reconciliation
 
 ```bash
 node --test \
   v2/job-dependency-scheduler.test.mjs \
   v2/final-media-facts.test.mjs \
+  v2/final-verification-gate.test.mjs \
   v2/job-retry-policy.test.mjs \
   v2/job-failure-classifier.test.mjs \
   v2/one-click-media-commit.test.mjs \
