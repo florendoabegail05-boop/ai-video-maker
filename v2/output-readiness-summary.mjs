@@ -1,6 +1,6 @@
 import {finalVerificationGate} from './final-verification-gate.mjs';
 
-const HARD_TECHNICAL_REASONS=new Set(['facts-contradict','dimensions-mismatch','audio-absent']);
+const HARD_TECHNICAL_REASONS=new Set(['facts-contradict','dimensions-mismatch','dimensions-invalid','duration-invalid','audio-absent','fps-invalid','videoCodec-invalid','container-invalid']);
 
 function state(label,ok,blocking=false,details={}){return{label,ok:ok===true,blocking:blocking===true,...details};}
 
@@ -54,7 +54,7 @@ export function outputReadinessSummary(project,factSets=[],options={}){
     technical,
     publishAuthorized:false,
     automaticPublishingAllowed:false,
-    note:'This summary keeps missing technical evidence separate from known-invalid output, rights review and owner approval. Even when all are satisfied, publishing remains a manual owner-controlled action.'
+    note:'This summary keeps missing technical evidence separate from known-invalid output, rights review and owner approval. Known-invalid dimensions, duration, required FPS/codec/container facts, contradictions, or required-audio absence remain hard blockers. Even when all checks are satisfied, publishing remains a manual owner-controlled action.'
   };
 }
 
