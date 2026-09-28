@@ -22,7 +22,7 @@ function executionProgress(entries=[]){
 }
 
 function completionNextAction(completion,execution){
-  if(!execution?.progress?.complete)return execution?.nextAction||'WAIT';
+  if(execution?.progress?.readyForVerification!==true)return execution?.nextAction||'WAIT';
   switch(completion?.state){
     case 'TECHNICAL VERIFICATION REQUIRED':return 'RUN_FINAL_VERIFICATION';
     case 'BLOCKED':return 'REVIEW_FINAL_OUTPUT_BLOCKERS';
@@ -67,8 +67,8 @@ export function oneClickStatusView(project,report,session,options={}){
     ||(completion.readiness?.technicallyReady===true&&rights?.complete===true&&ownerApproval?.current!==true);
 
   let verifyState='WAITING';
-  let verifyDetail='Wait for creation jobs to finish';
-  if(execution.progress.complete){
+  let verifyDetail='Wait for required creation jobs to finish successfully';
+  if(execution.progress.readyForVerification===true){
     if(completion.readiness?.technicallyReady===true){
       verifyState='DONE';
       verifyDetail='Current render passed the configured technical verification gate.';
@@ -79,6 +79,10 @@ export function oneClickStatusView(project,report,session,options={}){
       verifyState='REQUIRED';
       verifyDetail='Trusted current final-media evidence is still required.';
     }
+  }else if(execution.nextAction==='REVIEW_BLOCKERS'){
+    verifyDetail='Resolve creation blockers before final verification.';
+  }else if(execution.nextAction==='OWNER_OR_MANUAL_INPUT_REQUIRED'){
+    verifyDetail='Complete the required manual/import step before final verification.';
   }
 
   let reviewState='WAITING';
@@ -111,7 +115,7 @@ export function oneClickStatusView(project,report,session,options={}){
   const planCount=Number.isFinite(planJobs)?planJobs:entries.length;
   const sections=[
     {id:'plan',label:'Plan',state:'DONE',detail:`${planCount} jobs prepared`},
-    {id:'create',label:'Create',state:execution.nextAction==='REVIEW_BLOCKERS'?'BLOCKED':execution.nextAction==='OWNER_OR_MANUAL_INPUT_REQUIRED'?'MANUAL':execution.progress.complete?'DONE':'IN PROGRESS',detail:`${creationProgress.done}/${creationProgress.actionable} required jobs complete`},
+    {id:'create',label:'Create',state:execution.nextAction==='REVIEW_BLOCKERS'?'BLOCKED':execution.nextAction==='OWNER_OR_MANUAL_INPUT_REQUIRED'?'MANUAL':execution.progress.readyForVerification?'DONE':'IN PROGRESS',detail:`${creationProgress.done}/${creationProgress.actionable} required jobs complete`},
     {id:'verify',label:'Verify',state:verifyState,detail:verifyDetail},
     {id:'review',label:'Owner Review',state:reviewState,detail:reviewDetail}
   ];
@@ -123,8 +127,8 @@ export function oneClickStatusView(project,report,session,options={}){
     detail='A required manual/import step is blocking automatic progress.';
   }else if(execution.nextAction==='REVIEW_BLOCKERS'){
     headline='Creation blocked';
-    detail='One or more creation jobs are blocked and must be resolved before continuing.';
-  }else if(execution.progress.complete){
+    detail='One or more creation jobs are failed or blocked and must be resolved before final verification.';
+  }else if(execution.progress.readyForVerification===true){
     if(completion.state==='TECHNICAL VERIFICATION REQUIRED'){
       headline='Final verification required';
       detail='Creation is complete, but trusted current final-media evidence is still missing.';
