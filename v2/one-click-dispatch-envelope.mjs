@@ -1,5 +1,6 @@
 import {inspectOneClickSession} from './one-click-orchestrator.mjs';
 import {captureOperationGuard,validateOperationGuard} from './operation-guard.mjs';
+import {captureGenerationInputGuard,validateGenerationInputGuard} from './generation-input-guard.mjs';
 import {updateDraftJobState} from './draft-execution-ledger.mjs';
 
 const DISPATCHABLE_TYPES=new Set(['director','image','motion','captions','assemble','verify']);
@@ -40,6 +41,9 @@ export function prepareNextOneClickDispatch(project,report,session,options={}){
     kind:`one-click:${fullJob.type}`,
     sceneId:['image','motion'].includes(fullJob.type)?fullJob.sceneId:null
   });
+  const generationGuard=['image','motion'].includes(fullJob.type)
+    ?captureGenerationInputGuard(project,fullJob.sceneId,{type:fullJob.type,route:fullJob.route||null})
+    :null;
   const ledger=updateDraftJobState(session.ledger,fullJob.id,'RUNNING',{message:'Prepared for guarded FREE ONLY dispatch.'});
   const preparedSession={...session,started:true,ledger};
   return {
@@ -57,6 +61,7 @@ export function prepareNextOneClickDispatch(project,report,session,options={}){
       sceneId:fullJob.sceneId||null,
       costMode:'FREE ONLY',
       guard,
+      generationGuard,
       guardOptions:guardOptions(fullJob),
       payload:payloadForJob(fullJob),
       dispatchable:true,
@@ -65,7 +70,7 @@ export function prepareNextOneClickDispatch(project,report,session,options={}){
       destructiveReplacementAllowed:false,
       automaticPublishingAllowed:false,
       publishAuthorized:false,
-      note:'Prepared internal dispatch metadata only. The live executor must revalidate this guard immediately before any provider, FFmpeg or FFprobe action and must preserve locked/imported media.'
+      note:'Prepared internal dispatch metadata only. The live executor must revalidate operation and generation-input guards immediately before any provider, FFmpeg or FFprobe action and must preserve locked/imported media.'
     }
   };
 }
@@ -80,5 +85,9 @@ export function validateOneClickDispatch(project,envelope){
   if(unsafeRoute(envelope.payload?.route))return {ok:false,reason:'unsafe-or-paid-route'};
   const guard=validateOperationGuard(project,envelope.guard,envelope.guardOptions||{});
   if(!guard.ok)return {ok:false,reason:`stale-dispatch:${guard.reason}`};
+  if(['image','motion'].includes(envelope.jobType)){
+    const generation=validateGenerationInputGuard(project,envelope.generationGuard,{route:envelope.payload?.route||null});
+    if(!generation.ok)return {ok:false,reason:`stale-generation:${generation.reason}`};
+  }
   return {ok:true,reason:'current-free-only-guarded'};
 }
