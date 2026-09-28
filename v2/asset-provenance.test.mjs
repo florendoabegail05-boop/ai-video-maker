@@ -23,24 +23,28 @@ test('owner-recorded rights metadata can complete provenance review without chan
   project=addAsset(project,scene,{kind:'image',name:'my-art.png',sourcePath:'C:/private/my-art.png',provider:'local-import'});
   const id=project.assets.at(-1).id;
   const before={sourcePath:project.assets.at(-1).sourcePath,status:project.assets.at(-1).status,locked:project.assets.at(-1).locked};
-  project=setAssetProvenance(project,id,{origin:'owner-created',rightsStatus:'owner-confirmed',sourceLabel:'Created by owner',credit:'Owner'});
+  project=setAssetProvenance(project,id,{origin:'owner-created',rightsStatus:'owner-confirmed',sourceLabel:'Created by owner',credit:'Owner',note:'Original source note'});
   const asset=project.assets.find(item=>item.id===id);
   assert.equal(asset.provenance.origin,'owner-created');
   assert.equal(asset.provenance.rightsStatus,'owner-confirmed');
   assert.deepEqual({sourcePath:asset.sourcePath,status:asset.status,locked:asset.locked},before);
-  assert.equal(provenanceAudit(project).complete,true);
+  const audit=provenanceAudit(project);
+  assert.equal(audit.complete,true);
+  assert.equal(audit.items[0].sourceLabel,'Created by owner');
+  assert.equal(audit.items[0].note,'Original source note');
 });
 
-test('portable provenance summary excludes local paths and does not claim legal validation',()=>{
+test('portable provenance summary excludes local paths and internal provenance note',()=>{
   let project=planScenes(createProject('PRIVATE PROMPT'),5);
   const scene=project.scenes[0].id;
   project=addAsset(project,scene,{kind:'video',name:'clip.mp4',sourcePath:'C:/private/clip.mp4',provider:'local-import'});
   const id=project.assets.at(-1).id;
-  project=setAssetProvenance(project,id,{origin:'licensed',rightsStatus:'license-confirmed',sourceLabel:'Stock library',credit:'Creator credit'});
+  project=setAssetProvenance(project,id,{origin:'licensed',rightsStatus:'license-confirmed',sourceLabel:'Stock library',credit:'Creator credit',note:'PRIVATE INTERNAL NOTE'});
   const summary=portableProvenanceSummary(project);
   const text=JSON.stringify(summary);
   assert.equal(summary.complete,true);
-  assert.doesNotMatch(text,/C:\/private|PRIVATE PROMPT|sourcePath/);
+  assert.doesNotMatch(text,/C:\/private|PRIVATE PROMPT|PRIVATE INTERNAL NOTE|sourcePath/);
+  assert.equal(summary.assets[0].sourceLabel,'Stock library');
   assert.match(summary.note,/does not determine copyright ownership/i);
 });
 
