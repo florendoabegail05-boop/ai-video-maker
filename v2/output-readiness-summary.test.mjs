@@ -16,6 +16,25 @@ test('known invalid technical output remains a hard blocker',()=>{
   assert.equal(summary.publishAuthorized,false);
 });
 
+test('zero-duration output is hard blocked rather than treated as missing evidence',()=>{
+  const p=project();
+  const facts=[machineFinalMediaFacts(p,{width:1080,height:1920,duration:0},'ffprobe')];
+  const summary=outputReadinessSummary(p,facts);
+  assert.equal(summary.technicalHardBlocked,true);
+  assert.equal(summary.technicalVerificationRequired,false);
+  assert.ok(summary.technical.blockerReasons.includes('duration-invalid'));
+  assert.equal(outputReadinessLabel(summary),'BLOCKED');
+});
+
+test('known invalid required FPS is a hard blocker',()=>{
+  const p=project();
+  const facts=[machineFinalMediaFacts(p,{width:1080,height:1920,duration:5,fps:0},'ffprobe')];
+  const summary=outputReadinessSummary(p,facts,{technical:{requireFps:true}});
+  assert.equal(summary.technicalHardBlocked,true);
+  assert.ok(summary.technical.blockerReasons.includes('fps-invalid'));
+  assert.equal(outputReadinessLabel(summary),'BLOCKED');
+});
+
 test('missing trusted technical evidence requests verification instead of generic BLOCKED',()=>{
   const p=project();
   const summary=outputReadinessSummary(p,[]);
@@ -23,6 +42,16 @@ test('missing trusted technical evidence requests verification instead of generi
   assert.equal(summary.technicalHardBlocked,false);
   assert.equal(summary.technicalVerificationRequired,true);
   assert.equal(summary.blockers.includes('technical-verification'),false);
+  assert.equal(outputReadinessLabel(summary),'TECHNICAL VERIFICATION REQUIRED');
+});
+
+test('missing required FPS stays a verification request rather than a known-invalid blocker',()=>{
+  const p=project();
+  const facts=[machineFinalMediaFacts(p,{width:1080,height:1920,duration:5,fps:null},'ffprobe')];
+  const summary=outputReadinessSummary(p,facts,{technical:{requireFps:true}});
+  assert.equal(summary.technicalHardBlocked,false);
+  assert.equal(summary.technicalVerificationRequired,true);
+  assert.ok(summary.technical.blockerReasons.includes('fps-unknown'));
   assert.equal(outputReadinessLabel(summary),'TECHNICAL VERIFICATION REQUIRED');
 });
 
