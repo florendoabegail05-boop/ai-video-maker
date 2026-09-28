@@ -1,4 +1,5 @@
 import {revise, validateProjectBackup, captionsForTimeline, reusableAsset, selectedProjectAudio} from './core.mjs';
+import {renderSignature,verificationFreshness} from './render-signature.mjs';
 
 export function publishingDetails(project) {
   return {title: project.publishing?.title ?? project.name ?? '', description: project.publishing?.description ?? ''};
@@ -21,11 +22,14 @@ export function setFinalVerification(project, verification) {
   if (!verification || verification.kind !== 'aivm-v2-final-output-manifest') throw Error('Final-output verification manifest is invalid.');
   if (verification.projectId !== project.id) throw Error('Final-output verification belongs to a different project.');
   if (verification.verified !== true) throw Error('Only a passed final-output verification can be saved as verified.');
+  const currentSignature=renderSignature(project);
+  if(!verification.renderSignature||verification.renderSignature!==currentSignature)throw Error('Final-output verification does not match the current render inputs. Re-verify the current final MP4.');
   const safe = {
     kind: verification.kind,
     schema: verification.schema,
     projectId: verification.projectId,
     projectRevision: verification.projectRevision,
+    renderSignature:verification.renderSignature,
     verifiedAt: verification.verifiedAt,
     verified: true,
     expected: verification.expected,
@@ -50,15 +54,23 @@ export function captionSrt(project) {
 
 function publishingVerification(project){
   const saved=project.publishing?.finalVerification;
-  if(!saved||saved.kind!=='aivm-v2-final-output-manifest'||saved.projectId!==project.id||saved.verified!==true)return null;
+  const freshness=verificationFreshness(project,saved);
+  if(!freshness.fresh)return null;
   return {
     verifiedAt:saved.verifiedAt||null,
     projectRevision:saved.projectRevision??null,
+    renderSignature:saved.renderSignature,
     expected:saved.expected||null,
     actual:saved.actual||null,
     issues:Array.isArray(saved.issues)?saved.issues:[],
     provider:saved.provider||null
   };
+}
+
+export function finalVerificationStatus(project){
+  const saved=project?.publishing?.finalVerification;
+  const freshness=verificationFreshness(project,saved);
+  return {saved:!!saved,fresh:freshness.fresh,reason:freshness.reason,verifiedAt:saved?.verifiedAt||null,renderSignature:saved?.renderSignature||null,currentSignature:freshness.currentSignature};
 }
 
 // Export only portable, explicitly chosen metadata. Never include local paths,
@@ -79,14 +91,15 @@ export function makePublishingPackage(project) {
   const warnings = [
     'Metadata only: download the final MP4 and media files separately.',
     finalVerification
-      ? 'Final MP4 deterministic media facts were verified for the saved manifest; visual realism, identity consistency, anatomy and flicker still require human review.'
-      : 'Clip selection reflects saved metadata; final MP4 media facts are not verified by this package.',
+      ? 'Final MP4 deterministic media facts were verified for the current saved render inputs; visual realism, identity consistency, anatomy and flicker still require human review.'
+      : 'Final MP4 verification is missing or stale for the current render inputs.',
     'Captions are manually entered scene text, not a speech transcript. Avoid adding these subtitles twice if the final video already has burned-in captions.'
   ];
   const missing = scenes.filter(scene => !scene.selectedClipId).map(scene => scene.order);
   if (missing.length) warnings.push(`No eligible local clip is recorded for scene(s): ${missing.join(', ')}.`);
   return {schema: 1, kind: 'aivm-v2-publishing-package', costMode: 'FREE ONLY',
     projectId: project.id, projectRevision: project.revision, ...details,
+    renderSignature:renderSignature(project),
     plannedDuration: start, finalVideoVerified: !!finalVerification, finalOutput:finalVerification, scenes,
     audio: Object.fromEntries(['music', 'voice'].map(role => [role, selectedProjectAudio(project, role)?.id || null])),
     assets: project.assets.map(asset => ({id: asset.id, sceneId: asset.sceneId, kind: asset.kind,
