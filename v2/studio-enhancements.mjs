@@ -1,37 +1,47 @@
 import {loadProjects,saveProject,revise} from './core.mjs';
 import {setReferenceAsset,clearReferenceAsset,referenceSummary} from './references.mjs';
 import {runTechnicalQc,visualQcAvailability} from './technical-qc.mjs';
+import {chooseProject,decorateProjectButtons} from './project-selection.mjs';
 
 const KEY='aivm.v2.projects.v1';
 const el=id=>document.getElementById(id);
+let selectedProjectId='';
 
-export function chooseActiveProject(projects,{name='',prompt=''}={}){
-  const exact=projects.filter(project=>project.name===name&&project.prompt===prompt);
-  if(exact.length===1)return exact[0];
-  const byPrompt=projects.filter(project=>project.prompt===prompt);
-  if(byPrompt.length===1)return byPrompt[0];
-  const byName=projects.filter(project=>project.name===name);
-  if(byName.length===1)return byName[0];
-  return null;
+function projectsNow(){try{return loadProjects(localStorage);}catch{return [];}}
+function syncProjectButtons(){
+  const container=el('projects');
+  if(!container)return;
+  const buttons=decorateProjectButtons(container,projectsNow());
+  for(const button of buttons){
+    if(button.dataset.v2SelectionBound==='1')continue;
+    button.dataset.v2SelectionBound='1';
+    button.addEventListener('click',()=>{selectedProjectId=button.dataset.projectId||'';queueMicrotask(refresh);});
+  }
+}
+
+export function chooseActiveProject(projects,{projectId='',name='',prompt=''}={}){
+  return chooseProject(projects,{projectId,name,prompt});
 }
 
 function activeProject(){
-  try{return chooseActiveProject(loadProjects(localStorage),{name:el('name')?.value||'',prompt:(el('prompt')?.value||'').trim()});}
+  try{return chooseActiveProject(projectsNow(),{projectId:selectedProjectId,name:el('name')?.value||'',prompt:(el('prompt')?.value||'').trim()});}
   catch{return null;}
 }
 
 function status(message){const node=el('enhancementStatus');if(node)node.textContent=message;}
 
 function reselectProject(project){
+  syncProjectButtons();
   const buttons=[...(el('projects')?.querySelectorAll('button')||[])];
-  const match=buttons.find(button=>button.textContent===project.name);
-  if(match){match.click();return true;}
+  const match=buttons.find(button=>button.dataset.projectId===project.id);
+  if(match){selectedProjectId=project.id;match.click();return true;}
   return false;
 }
 
 function savePatchedProject(project,patched,message){
   const next=revise(project,patched);
   saveProject(localStorage,next);
+  selectedProjectId=next.id;
   if(!reselectProject(next))window.location.reload();
   status(message+' Revision '+next.revision+'.');
   return next;
@@ -98,7 +108,7 @@ function renderQc(project){
   const p=document.createElement('p');p.textContent=`Visual AI QC: unavailable until a verified evaluator actually runs. ${visual.note}`;host.append(p);
 }
 
-function refresh(){const project=activeProject();renderReferences(project);renderQc(project);}
+function refresh(){syncProjectButtons();const project=activeProject();renderReferences(project);renderQc(project);}
 
 el('runQc')?.addEventListener('click',()=>{renderQc(activeProject());status('Technical QC preflight refreshed. No assets were changed.');});
 el('refreshReferences')?.addEventListener('click',refresh);
@@ -106,9 +116,10 @@ el('refreshReferences')?.addEventListener('click',refresh);
 const summary=el('summary');
 if(summary)new MutationObserver(()=>queueMicrotask(refresh)).observe(summary,{childList:true,characterData:true,subtree:true});
 const projects=el('projects');
-if(projects)projects.addEventListener('click',()=>queueMicrotask(refresh));
+if(projects){projects.addEventListener('click',event=>{const button=event.target.closest?.('button');if(button?.dataset.projectId)selectedProjectId=button.dataset.projectId;queueMicrotask(refresh);});new MutationObserver(()=>queueMicrotask(syncProjectButtons)).observe(projects,{childList:true,subtree:true});}
 const scenes=el('scenes');
 if(scenes)new MutationObserver(()=>queueMicrotask(refresh)).observe(scenes,{childList:true,subtree:false});
 window.addEventListener('storage',event=>{if(event.key===KEY)refresh();});
 
+syncProjectButtons();
 refresh();
