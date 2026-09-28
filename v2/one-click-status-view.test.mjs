@@ -63,3 +63,27 @@ test('technical pass advances to rights review using current project provenance'
   assert.equal(view.rightsSummary.assets,0);
   assert.equal(view.publishAuthorized,false);
 });
+
+test('settled failed creation remains blocked and does not masquerade as final verification work',()=>{
+  const p=project(),r=report();
+  const session=createOneClickSession(p,r,{creation:{wantAudio:false,wantMotion:true,wantCaptions:true}});
+  const failed={
+    ...session,
+    ledger:{
+      ...session.ledger,
+      entries:session.ledger.entries.map(entry=>({
+        ...entry,
+        state:entry.jobId==='image:s1'?'FAILED':entry.state==='OPTIONAL'?'OPTIONAL':'DONE',
+        stale:false
+      }))
+    }
+  };
+  const view=oneClickStatusView(p,r,failed,{creation:{wantAudio:false,wantMotion:true,wantCaptions:true}});
+  assert.equal(view.state,'REVIEW_BLOCKERS');
+  assert.equal(view.nextAction,'REVIEW_BLOCKERS');
+  assert.equal(view.headline,'Creation blocked');
+  assert.equal(view.sections.find(item=>item.id==='create').state,'BLOCKED');
+  assert.equal(view.sections.find(item=>item.id==='verify').state,'WAITING');
+  assert.equal(view.sections.find(item=>item.id==='review').state,'WAITING');
+  assert.equal(view.manualPublishEligible,false);
+});
