@@ -19,7 +19,14 @@ export function releaseDescriptor(project){
     projectId:project?.id||null,
     renderSignature:renderSignature(project),
     publishing:{title:details.title||'',description:details.description||''},
-    provenance:provenance.items.map(item=>({assetId:item.assetId,rightsStatus:item.rightsStatus,credit:item.credit||null})).sort((a,b)=>String(a.assetId).localeCompare(String(b.assetId)))
+    provenance:provenance.items.map(item=>({
+      assetId:item.assetId,
+      origin:item.origin||'unknown',
+      rightsStatus:item.rightsStatus,
+      sourceLabel:item.sourceLabel||null,
+      credit:item.credit||null,
+      note:item.note||null
+    })).sort((a,b)=>String(a.assetId).localeCompare(String(b.assetId)))
   };
 }
 
