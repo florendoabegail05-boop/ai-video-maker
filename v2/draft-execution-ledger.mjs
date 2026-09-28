@@ -7,6 +7,7 @@ function now(){return new Date().toISOString();}
 function normalizeState(value){const state=String(value||'PENDING').toUpperCase();if(!ACTIVE.has(state))throw Error('Unknown draft job execution state.');return state;}
 function jobMap(plan){return new Map(plan.jobs.map(job=>[job.id,job]));}
 function optionalEntry(entry){return entry?.plannedState==='OPTIONAL'||(!entry?.plannedState&&entry?.state==='OPTIONAL');}
+function normalizedResultAssetIds(values){return [...new Set((Array.isArray(values)?values:[]).filter(Boolean))];}
 
 export function createDraftExecutionLedger(project,report,options={}){
   const plan=buildDraftJobPlan(project,report,options);
@@ -48,11 +49,14 @@ export function validateDraftExecutionLedger(project,report,ledger,options={}){
   return {valid:missing.length===0&&obsolete.length===0&&!revisionChanged,reason:revisionChanged?'project-revision-changed':missing.length?'jobs-added':obsolete.length?'jobs-removed':'match',missing,obsolete,revisionChanged};
 }
 
-export function updateDraftJobState(ledger,jobId,state,{message=null,resultAssetIds=[]}={}){
+export function updateDraftJobState(ledger,jobId,state,options={}){
   if(!ledger||ledger.kind!=='aivm-v2-draft-execution-ledger')throw Error('Draft execution ledger is required.');
   state=normalizeState(state);
   const exists=(ledger.entries||[]).some(entry=>entry.jobId===jobId);
   if(!exists)throw Error('Draft job is not in this ledger.');
+  const message=options?.message??null;
+  const hasResultAssetIds=Object.prototype.hasOwnProperty.call(options||{},'resultAssetIds');
+  const replacementResultAssetIds=hasResultAssetIds?normalizedResultAssetIds(options.resultAssetIds):null;
   const stamp=now();
   const entries=ledger.entries.map(entry=>{
     if(entry.jobId!==jobId)return entry;
@@ -60,7 +64,8 @@ export function updateDraftJobState(ledger,jobId,state,{message=null,resultAsset
     const startedAt=state==='RUNNING'?(entry.startedAt||stamp):entry.startedAt;
     const finishedAt=TERMINAL.has(state)?stamp:null;
     const attempts=state==='RUNNING'&&entry.state!=='RUNNING'?(Number(entry.attempts)||0)+1:Number(entry.attempts)||0;
-    return {...entry,state,attempts,startedAt,finishedAt,resultAssetIds:[...new Set((resultAssetIds||[]).filter(Boolean))],message:message?String(message).slice(0,500):null};
+    const resultAssetIds=hasResultAssetIds?replacementResultAssetIds:normalizedResultAssetIds(entry.resultAssetIds);
+    return {...entry,state,attempts,startedAt,finishedAt,resultAssetIds,message:message?String(message).slice(0,500):null};
   });
   return {...ledger,entries,updatedAt:stamp};
 }
