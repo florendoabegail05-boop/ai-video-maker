@@ -3,7 +3,7 @@
 Pull the latest `v2-clean-studio` first. Treat remote source as authoritative. Do not reset, force-push, or touch `main`/V1. Preserve all imported/locked media. FREE ONLY remains the default and no paid provider or large model download may be enabled automatically.
 
 ## Goal
-Move the current one-click architecture from coded/pure-module state into locally verified, minimally integrated Studio execution without weakening any safety, provenance, stale-result, technical-evidence, or owner-approval boundary.
+Move the current one-click architecture from coded/pure-module state into locally verified, minimally integrated Studio execution without weakening any safety, provenance, stale-result, technical-evidence, local-path, or owner-approval boundary.
 
 ## Phase 1 — verify the newest pure modules
 Run these focused suites first:
@@ -13,6 +13,8 @@ node --test \
   v2/generation-input-guard.test.mjs \
   v2/one-click-dispatch-envelope.test.mjs \
   v2/one-click-result-processor.test.mjs \
+  v2/local-generated-path-policy.test.mjs \
+  v2/one-click-media-path-integration.test.mjs \
   v2/one-click-media-commit.test.mjs \
   v2/one-click-retry-dispatch.test.mjs \
   v2/one-click-manual-resolution.test.mjs \
@@ -76,7 +78,7 @@ Show four read-only stages:
 
 Do not treat `draftExecutionSummary.complete` as success. `readyForVerification` / `successful` is the positive gate. FAILED, BLOCKED, MANUAL, stale, or unresolved required work must remain visibly unresolved.
 
-## Phase 4 — executor rules
+## Phase 4 — executor and local media rules
 Every dispatched image/motion result must revalidate immediately before accepting it:
 - current project operation guard
 - current generation-input guard
@@ -87,6 +89,8 @@ Every dispatched image/motion result must revalidate immediately before acceptin
 - no paid fallback
 
 Generated scene media must be added as a new candidate asset. Never overwrite/delete existing media. Locked/imported files remain untouched.
+
+Generated media registration must accept only absolute local filesystem paths using supported media extensions. Reject relative paths, `..` traversal segments, URL/URI paths, UNC/network paths, Windows device paths, and unsupported extensions. The current local bridge fallbacks already resolve generated outputs beneath `AIVM_MEDIA_ROOT`; confirm live executor normalization preserves that contract. Do not weaken the pure-module path boundary merely to accommodate an unsafe runner response.
 
 ## Phase 5 — Comfy/reference boundary
 Do not guess node IDs or workflow mappings.
@@ -127,6 +131,7 @@ Do not:
 - bypass login/CAPTCHA/permission prompts
 - invent technical verification
 - invent Comfy workflow mappings
+- accept unsafe relative/network/URI generated output paths
 - auto-approve owner review
 - auto-publish
 - modify `main`/V1
