@@ -3,6 +3,7 @@ import {updateDraftJobState} from './draft-execution-ledger.mjs';
 import {inspectOneClickSession} from './one-click-orchestrator.mjs';
 import {validateOneClickDispatch} from './one-click-dispatch-envelope.mjs';
 import {validateGenerationInputGuard} from './generation-input-guard.mjs';
+import {validateLocalGeneratedMediaPath,generatedMediaBasename} from './local-generated-path-policy.mjs';
 import {processOneClickDispatchResult} from './one-click-result-processor.mjs';
 
 const MEDIA_KIND_BY_JOB={image:'image',motion:'video'};
@@ -10,19 +11,7 @@ const MEDIA_KIND_BY_JOB={image:'image',motion:'video'};
 function clean(value,max=500){return String(value||'').replace(/\s+/g,' ').trim().slice(0,max);}
 function finite(value){const n=Number(value);return Number.isFinite(n)&&n>=0?n:null;}
 function resultOk(result){return result?.ok===true||result?.success===true||result?.status==='ok'||result?.status==='success';}
-function basename(value){return clean(String(value||'').split(/[\\/]/).filter(Boolean).at(-1)||'',180);}
 function staleReason(reason=''){return String(reason).startsWith('stale-dispatch:')||String(reason).startsWith('stale-generation:');}
-
-function localPath(value){
-  const path=String(value||'').trim();
-  if(!path||path.includes('\0'))return {ok:false,reason:'generated-media-path-missing'};
-  if(path.startsWith('\\\\'))return {ok:false,reason:'network-path-not-allowed'};
-  const windows=/^[A-Za-z]:[\\/]/.test(path);
-  const posix=path.startsWith('/');
-  const scheme=/^[A-Za-z][A-Za-z0-9+.-]*:/.test(path);
-  if(scheme&&!windows)return {ok:false,reason:'external-or-uri-path-not-allowed'};
-  return {ok:true,path,absolute:windows||posix};
-}
 
 function parentForMotion(project,sceneId,result={}){
   const requested=clean(result.parentAssetId,120);
@@ -50,7 +39,7 @@ export function prepareGeneratedMediaRegistration(project,envelope,result={}){
   const sceneId=envelope.sceneId;
   const scene=(project.scenes||[]).find(item=>item.id===sceneId);
   if(!scene)return {ok:false,reason:'target-scene-missing'};
-  const source=localPath(result.sourcePath);
+  const source=validateLocalGeneratedMediaPath(result.sourcePath,kind);
   if(!source.ok)return source;
   const route=clean(envelope.payload?.route||'local-generated',120);
   if(/paid|future-provider/i.test(route))return {ok:false,reason:'unsafe-or-paid-route'};
@@ -67,7 +56,7 @@ export function prepareGeneratedMediaRegistration(project,envelope,result={}){
     const generation=validateGenerationInputGuard(project,envelope.generationGuard,{route,parentAssetId});
     if(!generation.ok)return {ok:false,reason:`stale-generation:${generation.reason}`};
   }
-  const name=clean(result.name,180)||basename(source.path)||`${envelope.jobType}-${scene.order||sceneId}`;
+  const name=clean(result.name,180)||clean(generatedMediaBasename(source.path),180)||`${envelope.jobType}-${scene.order||sceneId}`;
   return {
     ok:true,
     reason:'registration-ready',
@@ -83,7 +72,7 @@ export function prepareGeneratedMediaRegistration(project,envelope,result={}){
     },
     sceneId,
     jobId:envelope.jobId,
-    note:'Registration is additive only. It creates a new project asset record and never overwrites or deletes existing media.'
+    note:'Registration is additive only. Generated media paths must be absolute local paths with supported media extensions; existing assets are never overwritten or deleted.'
   };
 }
 
