@@ -56,7 +56,12 @@ export function prepareGeneratedMediaRegistration(project,envelope,result={}){
   if(/paid|future-provider/i.test(route))return {ok:false,reason:'unsafe-or-paid-route'};
   let parentAssetId=null;
   if(kind==='video'){
-    const parent=parentForMotion(project,sceneId,result);
+    const expectedParentId=clean(envelope.payload?.sourceAssetId||envelope.generationGuard?.parentAssetId,120);
+    const reportedParentId=clean(result.parentAssetId,120);
+    if(!expectedParentId)return {ok:false,reason:'motion-source-image-missing'};
+    if(!reportedParentId)return {ok:false,reason:'motion-parent-evidence-missing'};
+    if(reportedParentId!==expectedParentId)return {ok:false,reason:'motion-parent-mismatch',expectedParentAssetId:expectedParentId,reportedParentAssetId:reportedParentId};
+    const parent=parentForMotion(project,sceneId,{...result,parentAssetId:expectedParentId});
     if(!parent.ok)return parent;
     parentAssetId=parent.parentAssetId;
     const generation=validateGenerationInputGuard(project,envelope.generationGuard,{route,parentAssetId});
