@@ -1,3 +1,5 @@
+import {invalidateGeneratedAssets} from './generation-freshness.mjs';
+
 const ROLES=new Set(['character','world']);
 
 function clean(value,max=120){return String(value||'').replace(/\s+/g,' ').trim().slice(0,max);}
@@ -15,15 +17,20 @@ export function setReferenceAsset(project,assetId,{role,label='',locked=true}={}
   if(asset.kind!=='image')throw Error('Only image assets can be used as visual references.');
   if(!asset.hasFile)throw Error('Reference image file is missing.');
   const reference={role:normalized,label:clean(label)||asset.name||`${normalized} reference`};
-  return {
+  const changed=asset.reference!==true||asset.referenceRole!==normalized||asset.referenceLabel!==reference.label;
+  const patched={
     ...project,
     assets:project.assets.map(item=>item.id===assetId?{...item,reference:true,referenceRole:normalized,referenceLabel:reference.label,locked:locked?true:item.locked,status:item.status==='needs regeneration'?'kept':item.status}:item)
   };
+  return changed?invalidateGeneratedAssets(patched,{reason:'visual reference set changed'}):patched;
 }
 
 export function clearReferenceAsset(project,assetId){
-  if(!project?.assets?.some(item=>item.id===assetId))throw Error('Asset missing.');
-  return {...project,assets:project.assets.map(item=>item.id===assetId?{...item,reference:false,referenceRole:null,referenceLabel:null}:item)};
+  const asset=project?.assets?.find(item=>item.id===assetId);
+  if(!asset)throw Error('Asset missing.');
+  const changed=asset.reference===true||!!asset.referenceRole||!!asset.referenceLabel;
+  const patched={...project,assets:project.assets.map(item=>item.id===assetId?{...item,reference:false,referenceRole:null,referenceLabel:null}:item)};
+  return changed?invalidateGeneratedAssets(patched,{reason:'visual reference set changed'}):patched;
 }
 
 export function referenceAssets(project,role){
