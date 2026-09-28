@@ -118,8 +118,8 @@ function publishingVerification(project){
   const freshness=verificationFreshness(project,saved);
   if(!freshness.fresh)return null;
   return {
-    verifiedAt:saved.verifiedAt||null,
-    projectRevision:saved.projectRevision??null,
+    verifiedAt:portableVerifiedAt(saved.verifiedAt),
+    projectRevision:finiteOrNull(saved.projectRevision),
     renderSignature:saved.renderSignature,
     expected:portableExpected(saved.expected),
     actual:portableActual(saved.actual),
@@ -131,7 +131,7 @@ function publishingVerification(project){
 export function finalVerificationStatus(project){
   const saved=project?.publishing?.finalVerification;
   const freshness=verificationFreshness(project,saved);
-  return {saved:!!saved,fresh:freshness.fresh,reason:freshness.reason,verifiedAt:saved?.verifiedAt||null,renderSignature:saved?.renderSignature||null,currentSignature:freshness.currentSignature};
+  return {saved:!!saved,fresh:freshness.fresh,reason:freshness.reason,verifiedAt:portableVerifiedAt(saved?.verifiedAt),renderSignature:saved?.renderSignature||null,currentSignature:freshness.currentSignature};
 }
 
 // Export only portable, explicitly chosen metadata. Never include local paths,
