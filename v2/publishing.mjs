@@ -14,6 +14,14 @@ function normalizeDetails(values) {
   return {title, description};
 }
 
+function portableProvider(value){
+  const provider=String(value??'').replace(/\s+/g,' ').trim().slice(0,120);
+  if(!provider)return null;
+  if(/[\\/]/.test(provider))return null;
+  if(/^(?:[a-zA-Z]:|[a-z][a-z0-9+.-]*:)/i.test(provider))return null;
+  return provider;
+}
+
 export function setPublishingDetails(project, values) {
   if (project.costMode !== 'FREE ONLY') throw Error('Publishing preparation requires FREE ONLY.');
   return revise(project, {...project, publishing: {...(project.publishing||{}), ...normalizeDetails(values)}});
@@ -36,7 +44,7 @@ export function setFinalVerification(project, verification) {
     expected: verification.expected,
     actual: verification.actual,
     issues: Array.isArray(verification.issues)?verification.issues.map(item=>({code:item.code,severity:item.severity,message:item.message})):[],
-    provider: verification.provider||null
+    provider: portableProvider(verification.provider)
   };
   return revise(project,{...project,publishing:{...(project.publishing||{}),finalVerification:safe}});
 }
@@ -64,7 +72,7 @@ function publishingVerification(project){
     expected:saved.expected||null,
     actual:saved.actual||null,
     issues:Array.isArray(saved.issues)?saved.issues:[],
-    provider:saved.provider||null
+    provider:portableProvider(saved.provider)
   };
 }
 
@@ -106,7 +114,7 @@ export function makePublishingPackage(project) {
     plannedDuration: start, finalVideoVerified: !!finalVerification, finalOutput:finalVerification, scenes,
     audio: Object.fromEntries(['music', 'voice'].map(role => [role, selectedProjectAudio(project, role)?.id || null])),
     assets: project.assets.map(asset => ({id: asset.id, sceneId: asset.sceneId, kind: asset.kind,
-      name: portableAssetName(asset.name)||asset.id, provider: asset.provider || null, status: asset.status,
+      name: portableAssetName(asset.name)||asset.id, provider: portableProvider(asset.provider), status: asset.status,
       locked: !!asset.locked, reference: !!asset.reference})),
     provenance,
     captionsSrt: captionSrt(project), warnings,
