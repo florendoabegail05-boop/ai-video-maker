@@ -11,6 +11,7 @@ function project(){
     prompt:'A small cinematic test scene.',
     style:'cinematic',
     hardwareMode:'light',
+    bible:{character:'',world:'',visualRules:''},
     scenes:[{id:'scene-1',order:1,duration:5,prompt:'A child waves beside a tree.',caption:'Hello',assetIds:[]}],
     assets:[]
   };
@@ -51,7 +52,7 @@ test('rejects a result when the dispatch became stale',()=>{
   assert.equal(prepared.session.ledger.entries.find(item=>item.jobId==='director:project').state,'RUNNING');
 });
 
-test('records a failed image job and exposes retry eligibility without auto retrying',()=>{
+test('records a transient failed image job and exposes retry eligibility without auto retrying',()=>{
   const p=project(),r=report();
   const director=firstDispatch(p,r);
   const directorDone=processOneClickDispatchResult(p,r,director.session,director.envelope,{ok:true},{creation});
@@ -61,6 +62,7 @@ test('records a failed image job and exposes retry eligibility without auto retr
   assert.equal(failed.accepted,false);
   assert.equal(failed.nextAction,'RETRY_ELIGIBLE');
   assert.equal(failed.retry.allowed,true);
+  assert.equal(failed.failure.category,'TRANSIENT');
   assert.equal(failed.automaticRetryAllowed,false);
   assert.equal(failed.session.ledger.entries.find(item=>item.jobId===image.envelope.jobId).state,'FAILED');
 });
@@ -76,9 +78,20 @@ test('does not silently accept result asset ids that are not already represented
 test('owner or paid-action failures are never marked for automatic retry',()=>{
   const p=project(),r=report();
   const director=firstDispatch(p,r);
-  const result=processOneClickDispatchResult(p,r,director.session,director.envelope,{ok:false,error:'login permission required'},{creation});
+  const result=processOneClickDispatchResult(p,r,director.session,director.envelope,{ok:false,code:'LOGIN_REQUIRED',error:'login permission required'},{creation});
   assert.equal(result.accepted,false);
   assert.equal(result.nextAction,'OWNER_OR_MANUAL_INPUT_REQUIRED');
   assert.equal(result.retry.allowed,false);
   assert.equal(result.retry.reason,'owner-or-paid-action-required');
+  assert.equal(result.failure.category,'OWNER_ACTION_REQUIRED');
+});
+
+test('missing capability routes to blockers rather than a retry loop',()=>{
+  const p=project(),r=report();
+  const director=firstDispatch(p,r);
+  const result=processOneClickDispatchResult(p,r,director.session,director.envelope,{ok:false,code:'FFMPEG_MISSING',error:'FFmpeg missing on this device'},{creation});
+  assert.equal(result.accepted,false);
+  assert.equal(result.nextAction,'REVIEW_BLOCKERS');
+  assert.equal(result.retry.allowed,false);
+  assert.equal(result.failure.category,'CAPABILITY_MISSING');
 });
