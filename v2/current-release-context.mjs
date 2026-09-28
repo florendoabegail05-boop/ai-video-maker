@@ -1,5 +1,5 @@
 import {provenanceAudit} from './asset-provenance.mjs';
-import {releaseApprovalFreshness} from './release-approval.mjs';
+import {verifiedReleaseApprovalFreshness} from './verified-release-approval.mjs';
 
 function approvalFlagsComplete(approval){
   return approval?.visualAudioApproved===true
@@ -11,10 +11,11 @@ export function currentReleaseContext(project,{ownerReleaseApproval=null}={}){
   if(!project?.id)throw Error('Project is required.');
   const provenance=provenanceAudit(project);
   const freshness=ownerReleaseApproval
-    ?releaseApprovalFreshness(project,ownerReleaseApproval)
+    ?verifiedReleaseApprovalFreshness(project,ownerReleaseApproval)
     :{fresh:false,reason:'missing-or-invalid'};
-  const approvalValid=ownerReleaseApproval?.kind==='aivm-v2-owner-release-approval'
+  const approvalValid=ownerReleaseApproval?.kind==='aivm-v2-verified-owner-release-approval'
     &&ownerReleaseApproval.projectId===project.id
+    &&ownerReleaseApproval.technicalVerifiedAtApproval===true
     &&approvalFlagsComplete(ownerReleaseApproval);
   const approvalCurrent=approvalValid&&freshness.fresh===true;
 
@@ -32,16 +33,17 @@ export function currentReleaseContext(project,{ownerReleaseApproval=null}={}){
     ownerApproval:{
       current:approvalCurrent,
       status:approvalCurrent?'approved-current':'approval-required',
-      reason:approvalCurrent?'release-approval-current':freshness.reason||'approval-required',
+      reason:approvalCurrent?'verified-release-approval-current':freshness.reason||'approval-required',
       approvedAt:approvalCurrent?ownerReleaseApproval.approvedAt||null:null,
       releaseSignature:approvalCurrent?ownerReleaseApproval.releaseSignature||null:null,
       renderSignature:approvalCurrent?ownerReleaseApproval.renderSignature||null:null,
-      source:'owner-release-approval'
+      technicalVerifiedAtApproval:approvalCurrent,
+      source:'verified-owner-release-approval'
     },
     approvalFreshness:freshness,
     provenanceSummary:provenance.summary,
     publishAuthorized:false,
     automaticPublishingAllowed:false,
-    note:'Rights readiness comes from the project provenance audit, and owner approval counts only when a complete owner release-approval record is still fresh for the current release inputs. This context never publishes or authorizes automatic publishing.'
+    note:'Rights readiness comes from current project provenance. One-click owner approval counts only when a verified owner release-approval record was created after trusted machine-class final verification and remains fresh for the current release inputs. Legacy or arbitrary approval booleans do not satisfy this boundary.'
   };
 }
