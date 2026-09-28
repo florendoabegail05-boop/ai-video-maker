@@ -14,7 +14,26 @@ function normalizeDetails(values) {
 
 export function setPublishingDetails(project, values) {
   if (project.costMode !== 'FREE ONLY') throw Error('Publishing preparation requires FREE ONLY.');
-  return revise(project, {...project, publishing: normalizeDetails(values)});
+  return revise(project, {...project, publishing: {...(project.publishing||{}), ...normalizeDetails(values)}});
+}
+
+export function setFinalVerification(project, verification) {
+  if (!verification || verification.kind !== 'aivm-v2-final-output-manifest') throw Error('Final-output verification manifest is invalid.');
+  if (verification.projectId !== project.id) throw Error('Final-output verification belongs to a different project.');
+  if (verification.verified !== true) throw Error('Only a passed final-output verification can be saved as verified.');
+  const safe = {
+    kind: verification.kind,
+    schema: verification.schema,
+    projectId: verification.projectId,
+    projectRevision: verification.projectRevision,
+    verifiedAt: verification.verifiedAt,
+    verified: true,
+    expected: verification.expected,
+    actual: verification.actual,
+    issues: Array.isArray(verification.issues)?verification.issues.map(item=>({code:item.code,severity:item.severity,message:item.message})):[],
+    provider: verification.provider||null
+  };
+  return revise(project,{...project,publishing:{...(project.publishing||{}),finalVerification:safe}});
 }
 
 function srtTime(seconds) {
@@ -29,12 +48,26 @@ export function captionSrt(project) {
   ).join('\n');
 }
 
+function publishingVerification(project){
+  const saved=project.publishing?.finalVerification;
+  if(!saved||saved.kind!=='aivm-v2-final-output-manifest'||saved.projectId!==project.id||saved.verified!==true)return null;
+  return {
+    verifiedAt:saved.verifiedAt||null,
+    projectRevision:saved.projectRevision??null,
+    expected:saved.expected||null,
+    actual:saved.actual||null,
+    issues:Array.isArray(saved.issues)?saved.issues:[],
+    provider:saved.provider||null
+  };
+}
+
 // Export only portable, explicitly chosen metadata. Never include local paths,
 // bridge links, project history, prompts, reference instructions or media bytes.
 export function makePublishingPackage(project) {
   validateProjectBackup(project);
   if (!project.scenes.length) throw Error('Create a scene plan before exporting a publishing package.');
   const details = normalizeDetails(publishingDetails(project));
+  const finalVerification=publishingVerification(project);
   let start = 0;
   const scenes = project.scenes.map((scene, index) => {
     const clip = reusableAsset(project, scene.id, 'video');
@@ -45,14 +78,16 @@ export function makePublishingPackage(project) {
   });
   const warnings = [
     'Metadata only: download the final MP4 and media files separately.',
-    'Clip selection reflects saved metadata; local file availability and final MP4 quality are not verified by this package.',
+    finalVerification
+      ? 'Final MP4 deterministic media facts were verified for the saved manifest; visual realism, identity consistency, anatomy and flicker still require human review.'
+      : 'Clip selection reflects saved metadata; final MP4 media facts are not verified by this package.',
     'Captions are manually entered scene text, not a speech transcript. Avoid adding these subtitles twice if the final video already has burned-in captions.'
   ];
   const missing = scenes.filter(scene => !scene.selectedClipId).map(scene => scene.order);
   if (missing.length) warnings.push(`No eligible local clip is recorded for scene(s): ${missing.join(', ')}.`);
   return {schema: 1, kind: 'aivm-v2-publishing-package', costMode: 'FREE ONLY',
     projectId: project.id, projectRevision: project.revision, ...details,
-    plannedDuration: start, finalVideoVerified: false, scenes,
+    plannedDuration: start, finalVideoVerified: !!finalVerification, finalOutput:finalVerification, scenes,
     audio: Object.fromEntries(['music', 'voice'].map(role => [role, selectedProjectAudio(project, role)?.id || null])),
     assets: project.assets.map(asset => ({id: asset.id, sceneId: asset.sceneId, kind: asset.kind,
       name: asset.name, provider: asset.provider || null, status: asset.status,
