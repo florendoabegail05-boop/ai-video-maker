@@ -2,9 +2,10 @@ import {inspectOneClickSession,oneClickCompletionStatus} from './one-click-orche
 
 function pct(done,total){return total>0?Math.round((done/total)*100):0;}
 function label(value){return String(value||'').replace(/[_-]+/g,' ').replace(/\b\w/g,m=>m.toUpperCase());}
+function optionalEntry(entry){return entry?.plannedState==='OPTIONAL'||(!entry?.plannedState&&entry?.state==='OPTIONAL');}
 
 function executionProgress(entries=[]){
-  const actionable=entries.filter(item=>item.state!=='OPTIONAL');
+  const actionable=entries.filter(item=>!optionalEntry(item));
   const done=actionable.filter(item=>['DONE','SKIPPED'].includes(item.state));
   const failed=actionable.filter(item=>['FAILED','BLOCKED'].includes(item.state));
   const manual=actionable.filter(item=>item.state==='MANUAL');
@@ -12,6 +13,7 @@ function executionProgress(entries=[]){
   const pending=actionable.filter(item=>item.state==='PENDING');
   return {
     actionable:actionable.length,
+    optional:entries.length-actionable.length,
     done:done.length,
     failed:failed.length,
     manual:manual.length,
@@ -171,6 +173,6 @@ export function oneClickStatusView(project,report,session,options={}){
     automaticExecutionAllowed:false,
     automaticPublishingAllowed:false,
     publishAuthorized:false,
-    note:'Presentation model only. It does not execute jobs, change files, enable paid providers, upload private media, or publish.'
+    note:'Presentation model only. Optional jobs stay optional even after they are skipped/resolved. This view does not execute jobs, change files, enable paid providers, upload private media, or publish.'
   };
 }
