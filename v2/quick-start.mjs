@@ -18,6 +18,14 @@ function durationSeconds(value){
   return seconds;
 }
 
+export function suggestProjectName(prompt,max=56){
+  const idea=String(prompt??'').replace(/\s+/g,' ').trim();
+  if(!idea)return 'Untitled project';
+  const firstThought=(idea.split(/[.!?]/,1)[0]||idea).trim();
+  const short=(firstThought||idea).split(' ').slice(0,8).join(' ').slice(0,Math.max(12,Number(max)||56)).trim().replace(/[,:;\-]+$/,'').trim();
+  return short||'Untitled project';
+}
+
 export function quickStartNeedsPlanning(current,prompt){
   const idea=String(prompt??'').trim();
   if(!idea)throw Error('Enter a video idea.');
@@ -66,7 +74,7 @@ export function prepareOnePromptProject({
       bible:references
     });
   }else{
-    base=createProject(idea,clean(name,80)||'Untitled project');
+    base=createProject(idea,clean(name,80)||suggestProjectName(idea));
     base={...base,style:visualStyle,hardwareMode:hardware,bible:references};
     created=true;
   }
