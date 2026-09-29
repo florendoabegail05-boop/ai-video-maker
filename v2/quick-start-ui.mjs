@@ -24,6 +24,8 @@ export function installQuickStartUi(){
   const prompt=el('prompt');
   if(!create||!plan||!prompt||create.dataset.quickStartBound==='1')return false;
   create.dataset.quickStartBound='1';
+  create.textContent='Create video · FREE ONLY';
+  create.title='From one prompt: create or reuse the scene plan, then continue the guarded local production workflow.';
 
   create.addEventListener('click',event=>{
     if(replayingPlannedClick){
