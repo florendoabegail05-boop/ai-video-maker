@@ -6,6 +6,14 @@ Verified working baseline before this additive batch:
 
 That baseline had **63 focused / 399 full V2+bridge tests passing, 0 failed, 0 skipped**, all six smoke scripts passing, real browser one-prompt production, real FFmpeg/FFprobe 1080x1920 verification, backup/restore, selective regeneration, imported audio, and the correct stop at **Rights review required**.
 
+## Verification freeze for this additive batch
+
+This capability/readiness batch is now frozen for local verification. The code HEAD immediately before this documentation update was:
+
+`c9b1c4fb548d8f30818dc934caa8e9a5e9956b69`
+
+Fetch the actual remote again before running. Do not add unrelated features. Make only fixes required by failing tests or the real capability-panel/browser check.
+
 ## New additive work after the verified baseline
 
 New module:
@@ -18,6 +26,14 @@ Small live UI integration:
 - `v2/recovery-capability-ui.mjs`
 
 Purpose: show exactly what the active FREE ONLY setup can create now without confusing draft fallbacks, imported media, or quality targets with model-backed generation.
+
+The readiness layer now derives generation availability from the existing verified adapter registry. It additionally guards against these false-positive cases:
+
+- mock bridge capability reports must never become generation-ready
+- FFmpeg motion is not ready unless the verified adapter contract has the required FFmpeg/FFprobe support
+- fallback stills and FFmpeg camera motion must never inherit photorealistic model-generation claims
+- a photorealistic image target is exposed only when a verified local model image route is active
+- `referenceForwardingEnabled:true` alone is insufficient; effective character/world reference support must also be verified
 
 The current laptop baseline should truthfully report:
 
@@ -50,6 +66,16 @@ node --test \
   v2/readiness.test.mjs
 ```
 
+The readiness tests must specifically prove:
+
+- fallback still + fallback motion are `DRAFT_ROUTE_READY`, not model-generated
+- missing FFprobe keeps motion unavailable even if FFmpeg exists
+- mock bridge reports do not produce verified generation readiness
+- fallback routes cannot expose photorealistic image/motion model targets
+- a verified local model image route can expose its photorealistic-image target when the capability report supports it
+- a raw reference-forwarding flag cannot bypass missing effective reference support
+- generated voice/music/SFX/lip-sync become ready only when their verified local adapters are present
+
 4. Then run the full regression:
 
 ```bash
@@ -74,7 +100,7 @@ node --test v2/*.test.mjs local-bridge/*.test.mjs
 - Imported voice/music is not generated audio.
 - Reference declarations are not reference forwarding; exact node mapping must be locally verified first.
 - Route state means route availability only.
-- Quality `targetPossible` means the route/capability report says the target may be attempted; it is not output proof.
+- Quality target means an active verified route may target it; it is not proof that the current output achieved the quality.
 - `verifiedOutput` requires current trusted evidence from `technical-claim-policy` / `verification-evidence`.
 - Stale evidence must not support a current-output claim.
 - Unknown must remain unknown; do not convert it to false/unavailable without evidence.
