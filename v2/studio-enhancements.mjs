@@ -1,4 +1,5 @@
 import './quick-start-ui.mjs';
+import './prompt-guide-ui.mjs';
 import {loadProjects,saveProject,revise} from './core.mjs';
 import {setReferenceAsset,clearReferenceAsset,referenceSummary} from './references.mjs';
 import {runTechnicalQc,visualQcAvailability} from './technical-qc.mjs';
