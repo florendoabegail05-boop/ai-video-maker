@@ -162,7 +162,11 @@ Acceptance: this complete owner flow works without paid calls and without destru
 
 ## Latest local verification
 
-Last known local verification before the newest chat-side Director/router commits: the previous Work/Codex session reported 31 V2/bridge tests plus six smoke suites passing with local FFmpeg, including real MP4/audio/caption rendering. **The newest Director/provider-router commits still need a fresh local test run.**
+### 2026-09-29 — Reconciled one-click Studio integration
+
+Current integration commit: `af5c37203fea58c6cc149b89ca2dfbc7187709cf`, based on remote `9c2cf6811b248023f26b174583dcf402ae830d93`. See `WORK_CODEX_STATUS_2026-09-29.md` for exact results and preservation details. Final local verification: **146 focused / 380 full V2+bridge tests passed, 0 failed, 0 skipped**, plus six smoke scripts. Real browser runs completed **10/10 silent and 11/11 audio-bearing required jobs**, with trusted final verification and the correct stop at **Rights review required**. No owner approval or publishing was performed. Both named preservation stashes remain intact. Continue this integration; do not replace it with another execution architecture.
+
+Historical baseline (superseded by the verification above): an earlier Work/Codex session reported 31 V2/bridge tests plus six smoke suites passing with local FFmpeg, including real MP4/audio/caption rendering. The milestones below record subsequent verification.
 
 ### 2026-09-28 — Local regression milestone (base db688ee)
 
