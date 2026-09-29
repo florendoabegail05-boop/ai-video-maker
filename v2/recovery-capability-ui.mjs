@@ -2,6 +2,7 @@ import {loadProjects,saveProject} from './core.mjs';
 import {captureRecoverySnapshot,recoverySnapshotsFor,restoreStoredSnapshot,removeRecoverySnapshot} from './recovery-store.mjs';
 import {decorateProjectButtons,chooseProject} from './project-selection.mjs';
 import {adapterAvailabilitySummary} from './adapter-registry.mjs';
+import {generationRouteRows} from './generation-route-readiness.mjs';
 import {bridgeCapabilities} from './local-provider.mjs';
 
 const el=id=>document.getElementById(id);
@@ -68,8 +69,17 @@ async function renderCapabilityRegistry(){
       row.append(strong,document.createTextNode(entries.length?entries.map(item=>`${item.label} · verified`).join('; '):'No verified FREE ONLY adapter reported'));
       host.append(row);
     }
-    const note=document.createElement('p');note.textContent='This registry reflects only the bridge capability response. It does not download models, enable paid providers, or prove artistic quality.';host.append(note);
-    status('Capability registry refreshed from the local bridge.');
+
+    const routeTitle=document.createElement('h3');routeTitle.textContent='What this setup can create now';host.append(routeTitle);
+    for(const item of generationRouteRows(report)){
+      const row=document.createElement('p');
+      const strong=document.createElement('strong');strong.textContent=`${item.name.toUpperCase()} · ${item.state}: `;
+      row.append(strong,document.createTextNode(item.detail));
+      host.append(row);
+    }
+
+    const note=document.createElement('p');note.textContent='This registry reflects only the bridge capability response. Draft fallbacks and imported audio remain labeled as such. This check does not download models, enable paid providers, enable automatic publishing, or prove artistic quality.';host.append(note);
+    status('Capability registry and generation readiness refreshed from the local bridge.');
   }catch(error){host.textContent='Local capability registry unavailable until the bridge is running.';status('Capability registry check stopped: '+error.message);}
   finally{if(button)button.disabled=false;}
 }
