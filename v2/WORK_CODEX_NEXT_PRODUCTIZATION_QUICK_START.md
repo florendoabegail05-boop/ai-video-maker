@@ -6,6 +6,14 @@ Start from the current `v2-clean-studio` branch. The last fully verified pre-pro
 
 That baseline had 380/380 full regression tests passing, all six smoke suites passing, real FFmpeg/FFprobe 1080×1920 verification, silent one-click 10/10 required jobs, audio-bearing one-click 11/11 required jobs, and both end-to-end runs stopping correctly at **Rights review required**. Preserve those guarantees.
 
+## Verification freeze
+
+The productization batch is now intentionally **feature-frozen for verification**. Do not add unrelated features while running this handoff. The remote head immediately before this freeze document was:
+
+`4b65798a40f12bd4a33ead69fdf46ddbd8eb47eb`
+
+Fetch again before testing and use the actual current remote head, because this documentation commit itself advances the branch. From this point, make only fixes required by failing focused/full/browser/machine verification. Do not redesign working flows merely for cleanup. The goal is to turn the accumulated one-prompt/product-shell/story-guidance work into the next verified usable baseline as quickly and safely as possible.
+
 Before changing anything:
 1. `git status`
 2. fetch `origin/v2-clean-studio`
