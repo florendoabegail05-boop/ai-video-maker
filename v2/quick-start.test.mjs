@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createProject,planScenes,addAsset} from './core.mjs';
-import {prepareOnePromptProject} from './quick-start.mjs';
+import {prepareOnePromptProject,quickStartNeedsPlanning} from './quick-start.mjs';
 
 test('fresh one-prompt quick start creates a FREE ONLY planned project',()=>{
   const result=prepareOnePromptProject({
@@ -33,6 +33,15 @@ test('starting one-click again preserves an existing plan and its assets exactly
   assert.equal(result.reusedPlan,true);
   assert.strictEqual(result.project,project);
   assert.deepEqual(result.project,before);
+});
+
+test('planning decision only asks for a plan when the selected project cannot be safely reused',()=>{
+  const project=planScenes(createProject('Same idea','Same'),10);
+  assert.equal(quickStartNeedsPlanning(project,' Same idea '),false);
+  assert.equal(quickStartNeedsPlanning(project,'Different idea'),true);
+  assert.equal(quickStartNeedsPlanning(createProject('Same idea'),'Same idea'),true);
+  assert.equal(quickStartNeedsPlanning(null,'Fresh idea'),true);
+  assert.throws(()=>quickStartNeedsPlanning(project,'   '),/Enter a video idea/);
 });
 
 test('a changed prompt creates a separate new project instead of replacing the selected one',()=>{
