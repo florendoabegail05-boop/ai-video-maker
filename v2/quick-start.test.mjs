@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createProject,planScenes,addAsset} from './core.mjs';
-import {prepareOnePromptProject,quickStartNeedsPlanning} from './quick-start.mjs';
+import {prepareOnePromptProject,quickStartNeedsPlanning,suggestProjectName} from './quick-start.mjs';
 
 test('fresh one-prompt quick start creates a FREE ONLY planned project',()=>{
   const result=prepareOnePromptProject({
@@ -21,6 +21,16 @@ test('fresh one-prompt quick start creates a FREE ONLY planned project',()=>{
   assert.equal(result.project.hardwareMode,'light');
   assert.equal(result.project.scenes.length,3);
   assert.equal(result.project.bible.character,'Small silver robot');
+});
+
+test('quick start derives a readable project name only when the owner leaves it blank',()=>{
+  assert.equal(suggestProjectName('  A tiny robot finds a glowing seed. Then it grows.  '),'A tiny robot finds a glowing seed');
+  assert.equal(suggestProjectName('One two three four five six seven eight nine ten'),'One two three four five six seven eight');
+  assert.equal(suggestProjectName('   '),'Untitled project');
+  const result=prepareOnePromptProject({prompt:'A lantern floats over the sleeping village.',seconds:10});
+  assert.equal(result.project.name,'A lantern floats over the sleeping village');
+  const named=prepareOnePromptProject({prompt:'A second idea.',name:'Owner Name',seconds:10});
+  assert.equal(named.project.name,'Owner Name');
 });
 
 test('starting one-click again preserves an existing plan and its assets exactly',()=>{
