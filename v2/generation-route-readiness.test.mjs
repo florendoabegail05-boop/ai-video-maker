@@ -42,10 +42,11 @@ test('missing image and video routes block local draft readiness',()=>{
   assert.ok(result.blockers.includes('video-route-unavailable'));
 });
 
-test('verified local model route is separated from reference forwarding verification',()=>{
+test('verified local image model route is separated from unverified motion and reference forwarding',()=>{
   const result=generationRouteReadiness({
     freeOnlyImageWorkflow:true,
-    routes:{video:{provider:'local-model-motion',verified:true}},
+    motionFallback:{enabled:true},
+    tools:{ffmpeg:{available:true}},
     supportsCharacterReferences:true,
     supportsWorldReferences:true,
     referenceForwardingEnabled:false,
@@ -53,10 +54,13 @@ test('verified local model route is separated from reference forwarding verifica
   });
   assert.equal(result.stages.image.state,'MODEL_ROUTE_READY');
   assert.equal(result.stages.image.mode,'model-generated');
-  assert.equal(result.stages.video.state,'MODEL_ROUTE_READY');
+  assert.equal(result.stages.video.state,'DRAFT_ROUTE_READY');
+  assert.equal(result.stages.video.mode,'ffmpeg-draft-motion');
+  assert.equal(result.modelBackedGenerationReady,false);
   assert.equal(result.referenceForwarding.character,true);
   assert.equal(result.referenceForwarding.world,true);
   assert.equal(result.referenceForwarding.enabled,false);
+  assert.ok(result.blockers.includes('model-motion-generation-unverified'));
   assert.ok(result.blockers.includes('reference-forwarding-unverified'));
 });
 
