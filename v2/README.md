@@ -6,6 +6,8 @@ V1/main remains untouched as the fallback.
 
 ## Product goal
 
+When an idea explicitly lists ordered actions in sentences or with “then,” “next,” or “finally,” the local planner assigns those actions to successive scenes. Single descriptive ideas retain the original broad storyboard. This deterministic reading is editable and cannot guarantee full semantic understanding or consistent generated imagery.
+
 One prompt → AI Director → reusable character/world references → scene assets → video/audio → timeline → QC → export → publishing package.
 
 The studio must also allow users to stop at any stage and keep/export an individual asset (for example, a generated still image) without creating a video.
