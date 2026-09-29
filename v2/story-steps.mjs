@@ -1,14 +1,36 @@
 // A local, deterministic reading of explicit story order. No model or provider is called.
+const ORDER_WORDS='then|next|after that|finally|tapos|sunod|pagkatapos(?: nito)?|sa huli';
+const LIST_MARKER=/^(?:[-*•]\s+|\d{1,2}[.)]\s+)/u;
+const LEADING_ORDER=new RegExp(`^(?:${ORDER_WORDS})\\b[,:-]?\\s*`,'iu');
+const INLINE_ORDER=new RegExp(`(?:\\s*(?:->|→)\\s*|(?:[,;]?\\s+)\\b(?:${ORDER_WORDS})\\b[,]?:?\\s*)`,'iu');
+
+function cleanStep(value){
+  return String(value||'')
+    .trim()
+    .replace(LIST_MARKER,'')
+    .replace(LEADING_ORDER,'')
+    .replace(/^[,;\s]+|[,;\s]+$/g,'')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function splitCandidate(value){
+  const numbered=String(value||'').split(/\s+(?=\d{1,2}[.)]\s+)/u);
+  return numbered.flatMap(part=>part
+    .split(/(?<=[.!?])\s+(?=(?:[A-Z\d]|then\b|next\b|after that\b|finally\b|tapos\b|sunod\b|pagkatapos\b|sa huli\b))/iu)
+    .flatMap(sentence=>sentence.split(INLINE_ORDER))
+  );
+}
+
 export function storySteps(prompt){
-  const text=String(prompt||'').replace(/\s+/g,' ').trim();
-  if(!text)return [];
-  // Split only at clear sentence or sequence boundaries; commas inside a visual
-  // description stay together so a character's attributes are not scattered.
-  const sentences=text.split(/(?<=[.!?])\s+(?=[A-Z\d])/u);
-  const steps=sentences.flatMap(sentence=>sentence.split(/(?:[,;]\s*|\s+)\b(?:then|next|after that|finally)\b[,]?:?\s*/iu))
-    .map(step=>step.trim().replace(/^[,;\s]+|[,;\s]+$/g,''))
-    .filter(Boolean);
-  return steps.length>1?steps.slice(0,12):[text];
+  const raw=String(prompt||'').replace(/\r\n?/g,'\n').trim();
+  if(!raw)return [];
+  const lines=raw.split(/\n+/).map(line=>line.trim()).filter(Boolean);
+  const explicitList=lines.length>1&&lines.filter(line=>LIST_MARKER.test(line)).length>=2;
+  const candidates=explicitList?lines:[lines.join(' ')];
+  const steps=candidates.flatMap(splitCandidate).map(cleanStep).filter(Boolean);
+  const normalized=raw.replace(/\s+/g,' ').trim();
+  return steps.length>1?steps.slice(0,12):[normalized];
 }
 
 export function sceneStoryFocus(prompt,index,count){
