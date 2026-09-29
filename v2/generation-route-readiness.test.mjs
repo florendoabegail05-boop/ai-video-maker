@@ -78,6 +78,35 @@ test('verified local image model route is separated from draft motion and unveri
   assert.ok(result.blockers.includes('reference-forwarding-unverified'));
 });
 
+test('fallback routes cannot inherit photorealistic model quality targets',()=>{
+  const result=generationRouteReadiness({...fallbackReport(),quality:{photorealisticImage:true,photorealisticMotion:true,output4k:true}});
+  assert.equal(result.stages.image.mode,'local-draft');
+  assert.equal(result.stages.video.mode,'ffmpeg-draft-motion');
+  assert.equal(result.qualityTargets.photorealisticImage,false);
+  assert.equal(result.qualityTargets.photorealisticMotion,false);
+  assert.equal(result.qualityTargets.output4k,true);
+});
+
+test('photorealistic image target is exposed only with a verified model image route',()=>{
+  const result=generationRouteReadiness({
+    freeOnlyImageWorkflow:true,
+    motionFallback:{enabled:true},
+    tools:{ffmpeg:{available:true,libx264:true},ffprobe:{available:true}},
+    quality:{photorealisticImage:true}
+  });
+  assert.equal(result.stages.image.mode,'model-generated');
+  assert.equal(result.qualityTargets.photorealisticImage,true);
+  assert.equal(result.qualityTargets.photorealisticMotion,false);
+});
+
+test('reference forwarding flag alone cannot bypass verified reference support',()=>{
+  const result=generationRouteReadiness({...fallbackReport(),referenceForwardingEnabled:true});
+  assert.equal(result.referenceForwarding.character,false);
+  assert.equal(result.referenceForwarding.world,false);
+  assert.equal(result.referenceForwarding.enabled,false);
+  assert.ok(result.blockers.includes('reference-forwarding-unverified'));
+});
+
 test('generated audio routes are only ready when explicitly verified',()=>{
   const result=generationRouteReadiness({
     ...fallbackReport(),
