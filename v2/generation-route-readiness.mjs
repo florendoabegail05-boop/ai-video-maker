@@ -39,10 +39,12 @@ export function generationRouteReadiness(report={},options={}){
     ?{state:'GENERATED_ROUTE_READY',mode:'generated',verified:true,provider:lipSyncAdapter.id,detail:'Verified FREE ONLY lip-sync route is available.'}
     :{state:'UNAVAILABLE',mode:'none',verified:false,provider:'unavailable',detail:'Lip-sync is not verified on the active FREE ONLY setup.'};
 
+  const characterReference=report?.supportsCharacterReferences===true;
+  const worldReference=report?.supportsWorldReferences===true;
   const referenceForwarding={
-    character:report?.supportsCharacterReferences===true,
-    world:report?.supportsWorldReferences===true,
-    enabled:report?.referenceForwardingEnabled===true,
+    character:characterReference,
+    world:worldReference,
+    enabled:report?.referenceForwardingEnabled===true&&(characterReference||worldReference),
     reason:report?.referenceReason||null
   };
 
@@ -56,18 +58,27 @@ export function generationRouteReadiness(report={},options={}){
   if(music.mode!=='generated')blockers.push('generated-music-unverified');
   if(lipSync.mode!=='generated')blockers.push('lip-sync-unverified');
 
+  const generatedAudioReady=voice.mode==='generated'||music.mode==='generated'||sfx.mode==='generated';
   const noQuality={photorealisticImage:false,photorealisticMotion:false,nativeAudio:false,lipSync:false,output4k:false};
+  const qualityTargets=report?.mock===true?noQuality:{
+    photorealisticImage:image.verified&&plan.quality.photorealisticImage===true,
+    photorealisticMotion:video.verified&&plan.quality.photorealisticMotion===true,
+    nativeAudio:generatedAudioReady&&plan.quality.nativeAudio===true,
+    lipSync:lipSync.verified&&plan.quality.lipSync===true,
+    output4k:image.verified&&video.verified&&plan.quality.output4k===true
+  };
+
   return {
     schema:1,
     kind:'aivm-v2-generation-route-readiness',
     costMode:plan.costMode,
     stages:{image,video,voice,music,sfx,lipSync},
     referenceForwarding,
-    qualityTargets:report?.mock===true?noQuality:{...plan.quality},
+    qualityTargets,
     canCreateLocalDraft:image.verified&&video.verified,
     canAssembleWithImportedAudio:image.verified&&video.verified,
     modelBackedGenerationReady:image.mode==='model-generated'&&video.mode==='model-generated',
-    generatedAudioReady:voice.mode==='generated'||music.mode==='generated'||sfx.mode==='generated',
+    generatedAudioReady,
     blockers,
     safeguards:{paidProvidersEnabled:false,automaticModelDownload:false,automaticPublishing:false},
     note:'Readiness is derived from the verified FREE ONLY adapter registry. Draft fallbacks, imported audio and quality targets are not presented as model generation, native audio, lip-sync or artistic-quality proof.'
