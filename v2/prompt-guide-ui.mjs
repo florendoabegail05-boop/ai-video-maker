@@ -30,6 +30,10 @@ export function installPromptGuideUi(){
   el('projects')?.addEventListener('click',()=>queueMicrotask(refresh));
   el('restore')?.addEventListener('change',()=>queueMicrotask(refresh));
   el('restoreBundle')?.addEventListener('change',()=>queueMicrotask(refresh));
+  // File restoration completes asynchronously, after the input change event.
+  // The Studio updates its summary only once the restored project is rendered.
+  const summary=el('summary');
+  if(summary)new MutationObserver(refresh).observe(summary,{childList:true,characterData:true,subtree:true});
   refresh();
   return true;
 }

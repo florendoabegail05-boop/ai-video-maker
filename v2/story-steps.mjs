@@ -16,7 +16,7 @@ function cleanStep(value){
 
 function splitCandidate(value){
   const numbered=String(value||'').split(/\s+(?=\d{1,2}[.)]\s+)/u);
-  return numbered.flatMap(part=>part
+  return numbered.flatMap(part=>part.replace(LIST_MARKER,'')
     .split(/(?<=[.!?])\s+(?=(?:[A-Z\d]|then\b|next\b|after that\b|finally\b|tapos\b|sunod\b|pagkatapos\b|sa huli\b))/iu)
     .flatMap(sentence=>sentence.split(INLINE_ORDER))
   );
