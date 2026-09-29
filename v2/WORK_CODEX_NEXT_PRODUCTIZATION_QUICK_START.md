@@ -19,10 +19,14 @@ Remote now includes:
 - `v2/quick-start.mjs`
 - `v2/quick-start.test.mjs`
 - `v2/quick-start-ui.mjs`
-- one side-effect import in `v2/studio-enhancements.mjs`
+- `v2/story-steps.mjs` plus its tests and `core.mjs` planner integration
+- `v2/prompt-guide.mjs`
+- `v2/prompt-guide.test.mjs`
+- `v2/prompt-guide-ui.mjs`
+- side-effect UI imports in `v2/studio-enhancements.mjs`
 - quick-start presentation rules in `v2/studio.css`
 
-The purpose is to make the existing primary action truly **one prompt → guarded local production** without forcing the owner to click `Create scene plan` first.
+The purpose is to make the existing primary action truly **one prompt → guarded local production** without forcing the owner to click `Create scene plan` first, while giving the owner a clear, non-destructive indication of how an ordered story prompt will be interpreted.
 
 ### Required behavior
 
@@ -37,6 +41,20 @@ When `Create video · FREE ONLY` is clicked:
 7. FREE ONLY, explicit retry, manual-media resolution, stale guards, rights review, verified owner approval and manual-publish-only rules remain unchanged.
 
 `quick-start-ui.mjs` intentionally uses a capture-phase listener only for the first click that needs planning. It invokes the Studio's existing `#plan` path, verifies that planning actually completed, then replays `#createDraft` once. Existing planned projects bypass this shim.
+
+## Ordered story planning and prompt guidance
+
+The branch also contains a deterministic local story-step reader. Verify it as a planning aid only, not as an AI-semantic guarantee.
+
+- Explicit ordered actions should be distributed across successive scenes in story order.
+- A single broad descriptive idea should keep the established broad storyboard behavior.
+- Scene prompts should avoid depicting future actions early and should carry prior/upcoming story context without replacing the project-level continuity system.
+- The new prompt guide must never rewrite the user's prompt. It only displays guidance beside the prompt field.
+- Blank prompt guidance should explain what information is useful.
+- A single broad idea should explain how to express order when needed.
+- A prompt recognized as multiple ordered steps should show the detected count and explain that the scene plan remains editable.
+- Selecting/restoring a project must refresh the guide to match the visible prompt.
+- Guidance must not contact the bridge, start generation, change project state, or imply that story interpretation is model-backed.
 
 ## Product-shell behavior added after the initial handoff
 
@@ -58,6 +76,8 @@ Run at minimum:
 ```bash
 node --test \
   v2/quick-start.test.mjs \
+  v2/story-steps.test.mjs \
+  v2/prompt-guide.test.mjs \
   v2/one-click-orchestrator.test.mjs \
   v2/one-click-dispatch-envelope.test.mjs \
   v2/one-click-media-commit.test.mjs \
@@ -100,11 +120,18 @@ Use the real V2 Studio in a browser with the local bridge and verify these flows
 - Confirm a new project ID is created, a new prompt-derived name is used, and the prior project remains unchanged and selectable.
 - Repeat with an explicitly typed new name and confirm the typed name wins.
 
-### D. Failure boundary
+### D. Prompt guidance / story order
+- With a blank prompt, confirm the guide is informational only and no bridge request occurs.
+- Enter one broad descriptive idea and confirm the guide says it is broad and suggests sequence wording only if order matters.
+- Enter an ordered idea such as `Maya enters the forest. Then she finds a glowing door. Finally she opens it.` and confirm the guide reports three ordered steps without changing the textarea value.
+- Click `Plan only` and confirm the planned scene order follows those actions.
+- Select another saved project and confirm the prompt guide refreshes to the newly visible prompt.
+
+### E. Failure boundary
 - Blank prompt must not contact/execute the bridge.
 - A project with media but no scenes must stop with a repair message rather than inventing a plan-to-media mapping.
 
-### E. Release boundary
+### F. Release boundary
 For a completed run, preserve the established path:
 
 **Create → Final Technical Verification → Rights Review → Verified Owner Approval → Manual Publish Only**
@@ -126,7 +153,7 @@ Return:
 - focused passed/failed count
 - full regression passed/failed/skipped count
 - smoke result
-- browser results for A–E and the product-shell behavior above
+- browser results for A–F and the product-shell behavior above
 - FFmpeg/FFprobe result
 - original media hash-preservation result
 - exact files changed, if any fixes were necessary
