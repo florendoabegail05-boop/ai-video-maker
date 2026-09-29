@@ -162,6 +162,10 @@ Acceptance: this complete owner flow works without paid calls and without destru
 
 ## Latest local verification
 
+### 2026-09-30 — Productization verification freeze completed
+
+Verified the one-prompt productization batch at remote `e9bbe71a3ae2d393533c92a2ed64340dca003333`. Fix commit `69bcfe37ee50daafab920bb8d1e599dc9d964b04` addresses only numbered story-step parsing and prompt-guide refresh after asynchronous restore. Final results: **63 focused passed / 399 full V2+bridge passed, 0 failed, 0 skipped**, plus all six smoke scripts. Real one-prompt browser runs, existing-plan reuse, reference locking, selective regeneration, imported music/voice-role audio, metadata/ZIP restore, and real FFmpeg/FFprobe verification completed. All 33 pre-existing media files retain identical hashes. See `WORK_CODEX_STATUS_2026-09-30.md` for exact coverage and limitations. Rights review remains the correct final stop; no owner approval or publishing was performed.
+
 ### 2026-09-29 — Reconciled one-click Studio integration
 
 Current integration commit: `af5c37203fea58c6cc149b89ca2dfbc7187709cf`, based on remote `9c2cf6811b248023f26b174583dcf402ae830d93`. See `WORK_CODEX_STATUS_2026-09-29.md` for exact results and preservation details. Final local verification: **146 focused / 380 full V2+bridge tests passed, 0 failed, 0 skipped**, plus six smoke scripts. Real browser runs completed **10/10 silent and 11/11 audio-bearing required jobs**, with trusted final verification and the correct stop at **Rights review required**. No owner approval or publishing was performed. Both named preservation stashes remain intact. Continue this integration; do not replace it with another execution architecture.
