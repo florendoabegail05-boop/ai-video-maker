@@ -18,6 +18,15 @@ function show(message){
   if(notice)notice.textContent=message;
 }
 
+function placeWorkflowStatus(shell){
+  const move=()=>{
+    const workflow=el('oneClickStudio');
+    if(workflow&&workflow.previousElementSibling!==shell)shell.after(workflow);
+  };
+  move();
+  queueMicrotask(move);
+}
+
 function productizeCreateAction(create,plan){
   create.textContent='Create video · FREE ONLY';
   create.title='From one prompt: create or reuse the scene plan, then continue the guarded local production workflow.';
@@ -26,7 +35,8 @@ function productizeCreateAction(create,plan){
   plan.classList.add('secondary');
   plan.title='Create or refresh a scene plan without starting local production.';
 
-  if(el('quickStartBar'))return;
+  const existing=el('quickStartBar');
+  if(existing){placeWorkflowStatus(existing);return;}
   const planActions=plan.parentElement;
   if(!planActions)return;
   const shell=document.createElement('section');
@@ -44,6 +54,7 @@ function productizeCreateAction(create,plan){
   actions.append(create);
   shell.append(copy,actions);
   planActions.before(shell);
+  placeWorkflowStatus(shell);
 }
 
 export function installQuickStartUi(){
