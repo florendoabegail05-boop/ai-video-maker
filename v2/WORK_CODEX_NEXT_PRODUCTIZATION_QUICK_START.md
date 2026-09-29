@@ -20,6 +20,7 @@ Remote now includes:
 - `v2/quick-start.test.mjs`
 - `v2/quick-start-ui.mjs`
 - one side-effect import in `v2/studio-enhancements.mjs`
+- quick-start presentation rules in `v2/studio.css`
 
 The purpose is to make the existing primary action truly **one prompt → guarded local production** without forcing the owner to click `Create scene plan` first.
 
@@ -36,6 +37,19 @@ When `Create video · FREE ONLY` is clicked:
 7. FREE ONLY, explicit retry, manual-media resolution, stale guards, rights review, verified owner approval and manual-publish-only rules remain unchanged.
 
 `quick-start-ui.mjs` intentionally uses a capture-phase listener only for the first click that needs planning. It invokes the Studio's existing `#plan` path, verifies that planning actually completed, then replays `#createDraft` once. Existing planned projects bypass this shim.
+
+## Product-shell behavior added after the initial handoff
+
+Verify these usability details in the real browser rather than assuming them from source:
+
+- The existing `#createDraft` control is moved into a visible quick-start card near the prompt/settings area; it is not duplicated.
+- Its visible label is **Create video · FREE ONLY**.
+- The old planner control is visibly downgraded to **Plan only** and remains available for owners who only want the storyboard.
+- The existing `#oneClickStudio` Plan/Create/Verify/Owner Review progress view is repositioned beside the quick-start area, without creating a second workflow state owner.
+- If the owner leaves project name blank, a short readable name is derived from the prompt.
+- When an existing project's prompt is changed and its old name is still sitting untouched in the name field, the new project should receive a new prompt-derived name instead of silently inheriting the old project's name.
+- If the owner explicitly typed a project name, preserve it.
+- None of these presentation/name conveniences may alter an already-planned same-prompt project's scenes, assets, locks, references, provenance, verification state or execution ledger.
 
 ## Focused tests
 
@@ -67,9 +81,11 @@ Use the real V2 Studio in a browser with the local bridge and verify these flows
 ### A. Fresh one-prompt project
 - Start with no selected project.
 - Enter a video idea.
+- Leave the project name blank once and confirm a readable prompt-derived name is used.
 - Click **Create video · FREE ONLY** once.
-- Do not manually click `Create scene plan`.
+- Do not manually click `Plan only`.
 - Confirm a project and scene plan are created, then guarded one-click execution begins.
+- Confirm the quick-start card and workflow progress are visible together and only one create control owns execution.
 
 ### B. Existing planned project
 - Open a project that already has scenes and at least one existing/locked/imported asset.
@@ -79,9 +95,10 @@ Use the real V2 Studio in a browser with the local bridge and verify these flows
 
 ### C. Changed prompt
 - Select an existing project.
-- Change the prompt to a different idea.
+- Leave its existing name untouched, then change the prompt to a different idea.
 - Click the primary create button once.
-- Confirm a new project ID is created and the prior project remains unchanged and selectable.
+- Confirm a new project ID is created, a new prompt-derived name is used, and the prior project remains unchanged and selectable.
+- Repeat with an explicitly typed new name and confirm the typed name wins.
 
 ### D. Failure boundary
 - Blank prompt must not contact/execute the bridge.
@@ -109,7 +126,7 @@ Return:
 - focused passed/failed count
 - full regression passed/failed/skipped count
 - smoke result
-- browser results for A–E
+- browser results for A–E and the product-shell behavior above
 - FFmpeg/FFprobe result
 - original media hash-preservation result
 - exact files changed, if any fixes were necessary
