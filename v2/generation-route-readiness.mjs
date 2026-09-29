@@ -1,64 +1,43 @@
 import {buildRoutePlan} from './provider-router.mjs';
+import {adapterAvailabilitySummary} from './adapter-registry.mjs';
 
-function verified(route){return route?.verified===true;}
+function firstAdapter(summary,kind){return (summary?.[kind]||[])[0]||null;}
 
-function imageStage(plan,report){
-  if(plan.image.kind==='local-comfyui'&&verified(plan.image)){
-    return {
-      state:'MODEL_ROUTE_READY',
-      mode:'model-generated',
-      verified:true,
-      provider:plan.image.kind,
-      detail:'Verified FREE ONLY local model image route is available.'
-    };
-  }
-  if(verified(plan.image)){
-    return {
-      state:'DRAFT_ROUTE_READY',
-      mode:'local-draft',
-      verified:true,
-      provider:plan.image.kind,
-      detail:'A verified local draft still route is available, but model-backed image generation is not verified.'
-    };
-  }
-  return {
-    state:'UNAVAILABLE',
-    mode:'none',
-    verified:false,
-    provider:plan.image.kind,
-    detail:plan.image.reason||'No verified FREE ONLY image route is available.'
-  };
+function imageStage(summary){
+  const adapter=firstAdapter(summary,'image');
+  if(!adapter)return {state:'UNAVAILABLE',mode:'none',verified:false,provider:'unavailable',detail:'No verified FREE ONLY image route is available.'};
+  if(adapter.id==='image:local-comfyui')return {state:'MODEL_ROUTE_READY',mode:'model-generated',verified:true,provider:adapter.id,detail:'Verified FREE ONLY local model image route is available.'};
+  if(adapter.id==='image:fallback')return {state:'DRAFT_ROUTE_READY',mode:'local-draft',verified:true,provider:adapter.id,detail:'A verified local draft still route is available, but model-backed image generation is not verified.'};
+  return {state:'VERIFIED_ROUTE_READY',mode:'verified-provider',verified:true,provider:adapter.id,detail:'A verified FREE ONLY image route is available, but it is not classified here as model-backed generation.'};
 }
 
-function videoStage(plan){
-  if(verified(plan.video)){
-    return {
-      state:plan.video.kind==='ffmpeg-camera-motion'?'DRAFT_ROUTE_READY':'MODEL_ROUTE_READY',
-      mode:plan.video.kind==='ffmpeg-camera-motion'?'ffmpeg-draft-motion':'model-generated',
-      verified:true,
-      provider:plan.video.kind,
-      detail:plan.video.kind==='ffmpeg-camera-motion'?'Verified local FFmpeg camera motion is available; generative motion is not implied.':'Verified FREE ONLY local video route is available.'
-    };
-  }
-  return {state:'UNAVAILABLE',mode:'none',verified:false,provider:plan.video.kind,detail:plan.video.reason||'No verified FREE ONLY video route is available.'};
+function videoStage(summary,report){
+  const adapter=firstAdapter(summary,'video');
+  if(!adapter)return {state:'UNAVAILABLE',mode:'none',verified:false,provider:'unavailable',detail:'No verified FREE ONLY video route is available.'};
+  if(adapter.id==='video:motion-fallback')return {state:'DRAFT_ROUTE_READY',mode:'ffmpeg-draft-motion',verified:true,provider:adapter.id,detail:'Verified local FFmpeg camera motion is available; generative motion is not implied.'};
+  const configured=report?.routes?.video;
+  if(configured?.generative===true&&adapter.id===`video:${configured.provider}`)return {state:'MODEL_ROUTE_READY',mode:'model-generated',verified:true,provider:adapter.id,detail:'Verified FREE ONLY generative video route is available.'};
+  return {state:'VERIFIED_ROUTE_READY',mode:'verified-provider',verified:true,provider:adapter.id,detail:'A verified FREE ONLY video route is available, but it is not classified here as generative motion.'};
 }
 
-function audioStage(route,label){
-  if(verified(route))return {state:'GENERATED_ROUTE_READY',mode:'generated',verified:true,provider:route.kind,detail:`Verified FREE ONLY ${label} generation route is available.`};
-  if(route?.kind==='import-only')return {state:'IMPORT_ONLY',mode:'import',verified:false,provider:'import-only',detail:`${label} can be supplied by importing local media; generation is not verified.`};
-  return {state:'UNAVAILABLE',mode:'none',verified:false,provider:route?.kind||'unavailable',detail:`No verified FREE ONLY ${label} route is available.`};
+function audioStage(summary,kind,label){
+  const adapter=firstAdapter(summary,kind);
+  if(adapter)return {state:'GENERATED_ROUTE_READY',mode:'generated',verified:true,provider:adapter.id,detail:`Verified FREE ONLY ${label} generation route is available.`};
+  return {state:'IMPORT_ONLY',mode:'import',verified:false,provider:'import-only',detail:`${label} can be supplied by importing local media; generation is not verified.`};
 }
 
 export function generationRouteReadiness(report={},options={}){
   const plan=buildRoutePlan(report,{costMode:options.costMode||'FREE ONLY',ownerApproved:options.ownerApproved===true});
-  const image=imageStage(plan,report);
-  const video=videoStage(plan);
-  const voice=audioStage(plan.audio.voice,'voice');
-  const music=audioStage(plan.audio.music,'music');
-  const sfx=audioStage(plan.audio.sfx,'sound-effect');
-  const lipSync=verified(plan.audio.lipSync)
-    ?{state:'GENERATED_ROUTE_READY',mode:'generated',verified:true,provider:plan.audio.lipSync.kind,detail:'Verified FREE ONLY lip-sync route is available.'}
-    :{state:'UNAVAILABLE',mode:'none',verified:false,provider:plan.audio.lipSync.kind,detail:'Lip-sync is not verified on the active FREE ONLY setup.'};
+  const summary=adapterAvailabilitySummary(report);
+  const image=imageStage(summary);
+  const video=videoStage(summary,report);
+  const voice=audioStage(summary,'voice','voice');
+  const music=audioStage(summary,'music','music');
+  const sfx=audioStage(summary,'sfx','sound-effect');
+  const lipSyncAdapter=firstAdapter(summary,'lipsync');
+  const lipSync=lipSyncAdapter
+    ?{state:'GENERATED_ROUTE_READY',mode:'generated',verified:true,provider:lipSyncAdapter.id,detail:'Verified FREE ONLY lip-sync route is available.'}
+    :{state:'UNAVAILABLE',mode:'none',verified:false,provider:'unavailable',detail:'Lip-sync is not verified on the active FREE ONLY setup.'};
 
   const referenceForwarding={
     character:report?.supportsCharacterReferences===true,
@@ -77,20 +56,21 @@ export function generationRouteReadiness(report={},options={}){
   if(music.mode!=='generated')blockers.push('generated-music-unverified');
   if(lipSync.mode!=='generated')blockers.push('lip-sync-unverified');
 
+  const noQuality={photorealisticImage:false,photorealisticMotion:false,nativeAudio:false,lipSync:false,output4k:false};
   return {
     schema:1,
     kind:'aivm-v2-generation-route-readiness',
     costMode:plan.costMode,
     stages:{image,video,voice,music,sfx,lipSync},
     referenceForwarding,
-    qualityTargets:{...plan.quality},
+    qualityTargets:report?.mock===true?noQuality:{...plan.quality},
     canCreateLocalDraft:image.verified&&video.verified,
     canAssembleWithImportedAudio:image.verified&&video.verified,
     modelBackedGenerationReady:image.mode==='model-generated'&&video.mode==='model-generated',
     generatedAudioReady:voice.mode==='generated'||music.mode==='generated'||sfx.mode==='generated',
     blockers,
     safeguards:{paidProvidersEnabled:false,automaticModelDownload:false,automaticPublishing:false},
-    note:'Readiness reports only verified active routes. Draft fallbacks, imported audio and quality targets are not presented as model generation, native audio, lip-sync or artistic-quality proof.'
+    note:'Readiness is derived from the verified FREE ONLY adapter registry. Draft fallbacks, imported audio and quality targets are not presented as model generation, native audio, lip-sync or artistic-quality proof.'
   };
 }
 
