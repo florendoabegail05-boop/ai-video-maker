@@ -47,9 +47,13 @@ When `Create video · FREE ONLY` is clicked:
 The branch also contains a deterministic local story-step reader. Verify it as a planning aid only, not as an AI-semantic guarantee.
 
 - Explicit ordered actions should be distributed across successive scenes in story order.
+- English sequence words (`Then`, `Next`, `After that`, `Finally`) and common Taglish/Filipino sequence words (`Tapos`, `Sunod`, `Pagkatapos`, `Sa huli`) should be recognized as explicit ordering cues.
+- Numbered and bulleted multiline prompts should preserve their line order and be treated as ordered story steps.
+- Ordinary multiline descriptive text without list markers must not become a fake sequence merely because it contains line breaks.
 - A single broad descriptive idea should keep the established broad storyboard behavior.
 - Scene prompts should avoid depicting future actions early and should carry prior/upcoming story context without replacing the project-level continuity system.
 - The new prompt guide must never rewrite the user's prompt. It only displays guidance beside the prompt field.
+- Prompt guidance must preserve the original line structure when asking the story-step reader to inspect numbered/bulleted prompts.
 - Blank prompt guidance should explain what information is useful.
 - A single broad idea should explain how to express order when needed.
 - A prompt recognized as multiple ordered steps should show the detected count and explain that the scene plan remains editable.
@@ -124,7 +128,10 @@ Use the real V2 Studio in a browser with the local bridge and verify these flows
 - With a blank prompt, confirm the guide is informational only and no bridge request occurs.
 - Enter one broad descriptive idea and confirm the guide says it is broad and suggests sequence wording only if order matters.
 - Enter an ordered idea such as `Maya enters the forest. Then she finds a glowing door. Finally she opens it.` and confirm the guide reports three ordered steps without changing the textarea value.
-- Click `Plan only` and confirm the planned scene order follows those actions.
+- Enter a Taglish sequence such as `Baby gumapang, tapos tumayo, sunod kumaway, sa huli ngumiti.` and confirm four ordered steps are detected in the same order.
+- Enter a numbered multiline prompt (`1. ...`, `2. ...`, `3. ...`) and a bulleted multiline prompt; confirm line structure is preserved for detection and the textarea remains unchanged.
+- Enter ordinary multiline descriptive text with no list markers and confirm it stays a single broad idea.
+- Click `Plan only` for an ordered prompt and confirm the planned scene order follows those actions.
 - Select another saved project and confirm the prompt guide refreshes to the newly visible prompt.
 
 ### E. Failure boundary
