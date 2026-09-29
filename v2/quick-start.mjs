@@ -18,6 +18,12 @@ function durationSeconds(value){
   return seconds;
 }
 
+export function quickStartNeedsPlanning(current,prompt){
+  const idea=String(prompt??'').trim();
+  if(!idea)throw Error('Enter a video idea.');
+  return !current||current.prompt!==idea||!Array.isArray(current.scenes)||current.scenes.length===0;
+}
+
 export function prepareOnePromptProject({
   current=null,
   prompt='',
@@ -38,7 +44,7 @@ export function prepareOnePromptProject({
 
   // Starting production on an already-planned project must never rebuild the plan
   // or replace media just because the owner pressed the one-click button again.
-  if(samePrompt&&Array.isArray(current?.scenes)&&current.scenes.length>0){
+  if(!quickStartNeedsPlanning(current,idea)){
     return {
       project:current,
       created:false,
