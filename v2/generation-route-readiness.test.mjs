@@ -6,7 +6,7 @@ function fallbackReport(){
   return {
     imageFallback:{enabled:true},
     motionFallback:{enabled:true},
-    tools:{ffmpeg:{available:true}},
+    tools:{ffmpeg:{available:true,libx264:true},ffprobe:{available:true}},
     supportsCharacterReferences:false,
     supportsWorldReferences:false,
     referenceForwardingEnabled:false,
@@ -33,20 +33,34 @@ test('verified draft fallbacks are reported as draft routes, never model generat
   assert.equal(result.safeguards.automaticModelDownload,false);
 });
 
-test('missing image and video routes block local draft readiness',()=>{
-  const result=generationRouteReadiness({tools:{ffmpeg:{available:false}}});
+test('missing or incomplete image/video routes block local draft readiness',()=>{
+  const noRoutes=generationRouteReadiness({tools:{ffmpeg:{available:false},ffprobe:{available:false}}});
+  assert.equal(noRoutes.stages.image.state,'UNAVAILABLE');
+  assert.equal(noRoutes.stages.video.state,'UNAVAILABLE');
+  assert.equal(noRoutes.canCreateLocalDraft,false);
+  assert.ok(noRoutes.blockers.includes('image-route-unavailable'));
+  assert.ok(noRoutes.blockers.includes('video-route-unavailable'));
+
+  const incomplete=generationRouteReadiness({imageFallback:{enabled:true},motionFallback:{enabled:true},tools:{ffmpeg:{available:true,libx264:true},ffprobe:{available:false}}});
+  assert.equal(incomplete.stages.image.state,'DRAFT_ROUTE_READY');
+  assert.equal(incomplete.stages.video.state,'UNAVAILABLE');
+  assert.equal(incomplete.canCreateLocalDraft,false);
+});
+
+test('mock bridge reports never become verified generation readiness',()=>{
+  const result=generationRouteReadiness({...fallbackReport(),mock:true,quality:{photorealisticImage:true,output4k:true}});
   assert.equal(result.stages.image.state,'UNAVAILABLE');
   assert.equal(result.stages.video.state,'UNAVAILABLE');
   assert.equal(result.canCreateLocalDraft,false);
-  assert.ok(result.blockers.includes('image-route-unavailable'));
-  assert.ok(result.blockers.includes('video-route-unavailable'));
+  assert.equal(result.qualityTargets.photorealisticImage,false);
+  assert.equal(result.qualityTargets.output4k,false);
 });
 
-test('verified local image model route is separated from unverified motion and reference forwarding',()=>{
+test('verified local image model route is separated from draft motion and unverified reference forwarding',()=>{
   const result=generationRouteReadiness({
     freeOnlyImageWorkflow:true,
     motionFallback:{enabled:true},
-    tools:{ffmpeg:{available:true}},
+    tools:{ffmpeg:{available:true,libx264:true},ffprobe:{available:true}},
     supportsCharacterReferences:true,
     supportsWorldReferences:true,
     referenceForwardingEnabled:false,
@@ -66,9 +80,7 @@ test('verified local image model route is separated from unverified motion and r
 
 test('generated audio routes are only ready when explicitly verified',()=>{
   const result=generationRouteReadiness({
-    imageFallback:{enabled:true},
-    motionFallback:{enabled:true},
-    tools:{ffmpeg:{available:true}},
+    ...fallbackReport(),
     freeOnlyVoiceWorkflow:true,
     freeOnlyMusicWorkflow:true,
     freeOnlySfxWorkflow:true,
