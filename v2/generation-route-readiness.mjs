@@ -61,8 +61,8 @@ export function generationRouteReadiness(report={},options={}){
   const generatedAudioReady=voice.mode==='generated'||music.mode==='generated'||sfx.mode==='generated';
   const noQuality={photorealisticImage:false,photorealisticMotion:false,nativeAudio:false,lipSync:false,output4k:false};
   const qualityTargets=report?.mock===true?noQuality:{
-    photorealisticImage:image.verified&&plan.quality.photorealisticImage===true,
-    photorealisticMotion:video.verified&&plan.quality.photorealisticMotion===true,
+    photorealisticImage:image.mode==='model-generated'&&plan.quality.photorealisticImage===true,
+    photorealisticMotion:video.mode==='model-generated'&&plan.quality.photorealisticMotion===true,
     nativeAudio:generatedAudioReady&&plan.quality.nativeAudio===true,
     lipSync:lipSync.verified&&plan.quality.lipSync===true,
     output4k:image.verified&&video.verified&&plan.quality.output4k===true
