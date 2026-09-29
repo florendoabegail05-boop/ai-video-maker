@@ -4,6 +4,26 @@ import {expectedOutput,validateFinalOutput,makeFinalOutputManifest,publishingVer
 
 const project={id:'p1',revision:4,scenes:[{duration:5},{duration:5},{duration:5}]};
 
+test('browser manifests cannot claim FPS or stream facts from supplied machine-shaped fields',()=>{
+  const manifest=makeFinalOutputManifest(project,{video:{width:1080,height:1920,fps:30,codec:'h264'},audio:{codec:'aac'},duration:15,bytes:9000});
+  assert.equal(manifest.actual.fps,null);
+  assert.equal(manifest.actual.hasAudio,null);
+  assert.equal(Object.hasOwn(manifest.factSets[0].raw,'fps'),false);
+  assert.equal(Object.hasOwn(manifest.factSets[0].raw,'audioStream'),false);
+  assert.equal(Object.hasOwn(manifest.factSets[0].evidence,'fps'),false);
+  assert.equal(Object.hasOwn(manifest.factSets[0].evidence,'audioStream'),false);
+});
+
+test('explicit bridge evidence distinguishes a silent output from unknown stream presence',()=>{
+  const media={video:{width:1080,height:1920,fps:'30/1',codec:'h264'},duration:15,bytes:9000};
+  const unknown=makeFinalOutputManifest(project,media,{evidenceSource:'bridge'});
+  const silent=makeFinalOutputManifest(project,{...media,audio:null},{evidenceSource:'bridge'});
+  assert.equal(unknown.actual.hasAudio,null);
+  assert.equal(silent.actual.hasAudio,false);
+  assert.equal(silent.actual.fps,30);
+  assert.equal(silent.factSets[0].raw.videoCodec,'h264');
+});
+
 test('expected output derives planned duration',()=>{
   assert.deepEqual(expectedOutput(project),{aspect:'9:16',width:1080,height:1920,fps:30,duration:15});
 });

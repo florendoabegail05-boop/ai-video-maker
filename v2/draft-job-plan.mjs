@@ -75,6 +75,8 @@ export function buildDraftJobPlan(project,report,{wantMotion=true,wantAudio=true
 
   if(wantCaptions){
     jobs.push(job('captions:project','captions','READY','Create/edit captions locally from scene captions; do not claim speech recognition unless a verified transcription route is connected.',{destructive:false}));
+  }else{
+    jobs.push(job('captions:project','captions','OPTIONAL','Captions were not requested for this creation plan.',{destructive:false}));
   }
 
   const assemble=creation.stages.find(item=>item.id==='assemble');

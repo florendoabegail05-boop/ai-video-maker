@@ -1,4 +1,5 @@
 import {renderSignature} from './render-signature.mjs';
+import {browserFinalMediaFacts,machineFinalMediaFacts} from './final-media-facts.mjs';
 
 function number(value){if(value===null||value===undefined||value==='')return null;const n=Number(value);return Number.isFinite(n)?n:null;}
 function frameRate(value){if(typeof value==='string'&&/^\d+\/\d+$/.test(value)){const [n,d]=value.split('/').map(Number);return d?n/d:null;}return number(value);}
@@ -40,6 +41,11 @@ export function validateFinalOutput(project,media,{aspect='9:16',width=1080,heig
 
 export function makeFinalOutputManifest(project,media,options={}){
   const report=validateFinalOutput(project,media,options);
+  const machine=['bridge','ffprobe'].includes(options.evidenceSource);
+  const factSets=[machine?machineFinalMediaFacts(project,{width:report.actual.width,height:report.actual.height,duration:report.actual.duration,fps:report.actual.fps,
+    audioStream:Object.hasOwn(media||{},'audio')?(media.audio===null?false:typeof media.audio==='object'?true:null):null,
+    videoCodec:media.video?.codec,audioCodec:media.audio?.codec,container:media.format},options.evidenceSource):
+    browserFinalMediaFacts(project,{width:report.actual.width,height:report.actual.height,duration:report.actual.duration,fileSize:report.actual.bytes})];
   return {
     schema:1,
     kind:'aivm-v2-final-output-manifest',
@@ -49,7 +55,8 @@ export function makeFinalOutputManifest(project,media,options={}){
     verifiedAt:new Date().toISOString(),
     verified:report.passed,
     expected:report.expected,
-    actual:report.actual,
+    actual:{...report.actual,fps:machine?report.actual.fps:null,hasAudio:machine?factSets[0].raw.audioStream:null},
+    factSets,
     issues:report.issues,
     provider:portableProvider(media?.provider||media?.encoder||''),
     note:'Portable verification metadata only. Local file paths, media bytes and bridge URLs are intentionally excluded.'

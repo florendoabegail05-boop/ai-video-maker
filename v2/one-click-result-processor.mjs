@@ -16,6 +16,7 @@ export function processOneClickDispatchResult(project,report,session,envelope,re
   const job=(session.plan?.jobs||[]).find(item=>item.id===envelope.jobId);
   if(!job)return {accepted:false,reason:'job-missing-from-session-plan',nextAction:'REPLAN',session,publishAuthorized:false};
   if(job.type!==envelope.jobType)return {accepted:false,reason:'job-type-mismatch',nextAction:'REPLAN',session,publishAuthorized:false};
+  if((job.sceneId||null)!==(envelope.sceneId||null)||(job.route||null)!==(envelope.payload?.route||null))return {accepted:false,reason:'job-scene-or-route-mismatch',nextAction:'REPLAN',session,publishAuthorized:false};
 
   const dispatchCheck=validateOneClickDispatch(project,envelope);
   if(!dispatchCheck.ok){

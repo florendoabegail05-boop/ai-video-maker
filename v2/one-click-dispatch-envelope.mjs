@@ -88,6 +88,8 @@ export function validateOneClickDispatch(project,envelope){
   if(envelope.publishAuthorized===true||envelope.automaticPublishingAllowed===true)return {ok:false,reason:'publishing-not-allowed'};
   if(!DISPATCHABLE_TYPES.has(envelope.jobType))return {ok:false,reason:'unsupported-job-type'};
   if(unsafeRoute(envelope.payload?.route))return {ok:false,reason:'unsafe-or-paid-route'};
+  if(envelope.payload?.jobId!==envelope.jobId||envelope.payload?.type!==envelope.jobType||envelope.payload?.sceneId!==envelope.sceneId)return {ok:false,reason:'dispatch-payload-mismatch'};
+  if(['image','motion'].includes(envelope.jobType)&&(envelope.sceneId!==envelope.guard?.sceneId||envelope.sceneId!==envelope.generationGuard?.sceneId||envelope.jobType!==envelope.generationGuard?.type))return {ok:false,reason:'dispatch-scene-guard-mismatch'};
   const guard=validateOperationGuard(project,envelope.guard,envelope.guardOptions||{});
   if(!guard.ok)return {ok:false,reason:`stale-dispatch:${guard.reason}`};
   if(['image','motion'].includes(envelope.jobType)){
