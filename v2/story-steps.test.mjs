@@ -26,3 +26,36 @@ test('short duration still includes every explicit action',()=>{
   assert.equal(project.scenes.length,2);
   assert.match(project.scenes[1].beat,/it lands.*it sings/);
 });
+
+test('Taglish sequence words are recognized without changing the original project prompt',()=>{
+  const idea='Baby gumapang sa playmat, tapos tumayo sa sofa, sunod kumaway kay Mommy, sa huli ngumiti sa camera.';
+  assert.deepEqual(storySteps(idea),[
+    'Baby gumapang sa playmat',
+    'tumayo sa sofa',
+    'kumaway kay Mommy',
+    'ngumiti sa camera.'
+  ]);
+  const project=planScenes(createProject(idea),20);
+  assert.equal(project.scenes.length,4);
+  assert.match(project.scenes[0].beat,/gumapang/);
+  assert.match(project.scenes[3].beat,/ngumiti/);
+  assert.equal(project.prompt,idea);
+});
+
+test('numbered and bulleted multiline prompts preserve explicit owner order',()=>{
+  assert.deepEqual(storySteps('1. Open the magic door\n2. Enter the rainbow room\n3. Find the missing star'),[
+    'Open the magic door',
+    'Enter the rainbow room',
+    'Find the missing star'
+  ]);
+  assert.deepEqual(storySteps('- Pick up the toy\n- Put it in the box\n- Close the lid'),[
+    'Pick up the toy',
+    'Put it in the box',
+    'Close the lid'
+  ]);
+});
+
+test('ordinary multiline description is not treated as an ordered list just because it has line breaks',()=>{
+  const idea='A small red robot\ninside a warm kitchen\nsoft morning light';
+  assert.deepEqual(storySteps(idea),['A small red robot inside a warm kitchen soft morning light']);
+});
