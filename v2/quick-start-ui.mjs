@@ -1,5 +1,5 @@
 import {loadProjects} from './core.mjs';
-import {quickStartNeedsPlanning} from './quick-start.mjs';
+import {quickStartNeedsPlanning,suggestProjectName} from './quick-start.mjs';
 
 const el=id=>document.getElementById(id);
 let replayingPlannedClick=false;
@@ -18,14 +18,42 @@ function show(message){
   if(notice)notice.textContent=message;
 }
 
+function productizeCreateAction(create,plan){
+  create.textContent='Create video · FREE ONLY';
+  create.title='From one prompt: create or reuse the scene plan, then continue the guarded local production workflow.';
+  create.setAttribute('aria-describedby','quickStartHint');
+  plan.textContent='Plan only';
+  plan.classList.add('secondary');
+  plan.title='Create or refresh a scene plan without starting local production.';
+
+  if(el('quickStartBar'))return;
+  const planActions=plan.parentElement;
+  if(!planActions)return;
+  const shell=document.createElement('section');
+  shell.id='quickStartBar';
+  shell.className='quick-start-bar';
+  const copy=document.createElement('div');
+  const title=document.createElement('strong');
+  title.textContent='One prompt → guarded local video';
+  const hint=document.createElement('p');
+  hint.id='quickStartHint';
+  hint.textContent='One click can create the scene plan when needed, preserve an existing plan when reusable, then continue the verified FREE ONLY workflow. If a required local route is unavailable, production stops instead of switching to a paid provider.';
+  copy.append(title,hint);
+  const actions=document.createElement('div');
+  actions.className='actions quick-start-actions';
+  actions.append(create);
+  shell.append(copy,actions);
+  planActions.before(shell);
+}
+
 export function installQuickStartUi(){
   const create=el('createDraft');
   const plan=el('plan');
   const prompt=el('prompt');
+  const name=el('name');
   if(!create||!plan||!prompt||create.dataset.quickStartBound==='1')return false;
   create.dataset.quickStartBound='1';
-  create.textContent='Create video · FREE ONLY';
-  create.title='From one prompt: create or reuse the scene plan, then continue the guarded local production workflow.';
+  productizeCreateAction(create,plan);
 
   create.addEventListener('click',event=>{
     if(replayingPlannedClick){
@@ -37,6 +65,13 @@ export function installQuickStartUi(){
       const idea=prompt.value.trim();
       const current=selectedProject();
       if(!quickStartNeedsPlanning(current,idea))return;
+
+      // A changed idea should not accidentally inherit the old project's visible
+      // name just because the owner did not edit that optional field.
+      if(name&&(!current||current.prompt!==idea)){
+        const visible=name.value.trim();
+        if(!visible||visible===current?.name)name.value=suggestProjectName(idea);
+      }
 
       // An unexpected project with media but no scene plan needs deliberate repair;
       // never guess how those media records should be attached to a new plan.
