@@ -1,7 +1,8 @@
 import {storySteps} from './story-steps.mjs';
 
 export function promptGuide(prompt){
-  const text=String(prompt??'').replace(/\s+/g,' ').trim();
+  const raw=String(prompt??'');
+  const text=raw.replace(/\s+/g,' ').trim();
   if(!text){
     return {
       state:'empty',
@@ -10,7 +11,9 @@ export function promptGuide(prompt){
     };
   }
 
-  const steps=storySteps(text);
+  // Pass the original line structure to storySteps so numbered/bulleted prompts
+  // remain detectable. The guide never rewrites the owner prompt.
+  const steps=storySteps(raw);
   if(steps.length>1){
     return {
       state:'sequenced',
@@ -22,6 +25,6 @@ export function promptGuide(prompt){
   return {
     state:'descriptive',
     stepCount:1,
-    message:'One broad video idea detected. If a specific order matters, separate the actions into sentences or use Then, Next, After that or Finally.'
+    message:'One broad video idea detected. If a specific order matters, use separate numbered/bulleted lines or sequence words such as Then, Next, Tapos, Sunod, Pagkatapos or Finally.'
   };
 }
