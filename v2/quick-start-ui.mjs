@@ -103,8 +103,12 @@ export function installQuickStartUi(){
       }
 
       show('Scene plan created safely. Starting guarded FREE ONLY production…');
-      replayingPlannedClick=true;
-      create.click();
+      // A listener's microtasks can still run inside the current activation.
+      // Replay on the next task so HTML's reentrant click guard has cleared.
+      setTimeout(()=>{
+        replayingPlannedClick=true;
+        create.click();
+      },0);
     }catch(error){
       event.preventDefault();
       event.stopImmediatePropagation();
