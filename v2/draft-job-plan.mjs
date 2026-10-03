@@ -1,6 +1,7 @@
 import {buildCreationPlan} from './creation-plan.mjs';
 import {directorBrief} from './director.mjs';
 import {referenceSummary} from './references.mjs';
+import {buildSceneGenerationContract} from './generation-prompt-contract.mjs';
 
 function job(id,type,state,message,details={}){return{id,type,state,message,...details};}
 function clean(value,max=8000){return String(value||'').replace(/\s+/g,' ').trim().slice(0,max);}
@@ -23,6 +24,7 @@ export function buildDraftJobPlan(project,report,{wantMotion=true,wantAudio=true
   for(const scene of scenes){
     const brief=directorBrief(project,scene.id);
     const scenePrompt=clean(scene.prompt||scene.beat||project.prompt||'',4000);
+    const promptContract=buildSceneGenerationContract(project,scene.id);
     if(imageStage?.state==='READY'){
       jobs.push(job(`image:${scene.id}`,'image','READY',`Generate or reuse the scene image through ${imageStage.route||'the verified FREE ONLY image route'}.`,{
         sceneId:scene.id,
@@ -30,6 +32,7 @@ export function buildDraftJobPlan(project,report,{wantMotion=true,wantAudio=true
         route:imageStage.route||null,
         prompt:scenePrompt,
         directorBrief:brief,
+        promptContract,
         characterReferenceIds:refs.characters.map(item=>item.id),
         worldReferenceIds:refs.worlds.map(item=>item.id),
         destructive:false
@@ -41,6 +44,7 @@ export function buildDraftJobPlan(project,report,{wantMotion=true,wantAudio=true
         route:imageStage?.route||'unavailable',
         prompt:scenePrompt,
         directorBrief:brief,
+        promptContract,
         destructive:false
       }));
     }
@@ -52,6 +56,7 @@ export function buildDraftJobPlan(project,report,{wantMotion=true,wantAudio=true
           sceneOrder:scene.order,
           route:motionStage.route||null,
           directorBrief:brief,
+          promptContract,
           destructive:false
         }));
       }else{
@@ -59,6 +64,7 @@ export function buildDraftJobPlan(project,report,{wantMotion=true,wantAudio=true
           sceneId:scene.id,
           sceneOrder:scene.order,
           route:motionStage?.route||'unavailable',
+          promptContract,
           destructive:false
         }));
       }
