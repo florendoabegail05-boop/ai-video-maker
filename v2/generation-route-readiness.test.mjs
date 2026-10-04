@@ -14,6 +14,20 @@ function fallbackReport(){
   };
 }
 
+test('mock reports cannot advertise reference forwarding even with effective support flags',()=>{
+  const result=generationRouteReadiness({...fallbackReport(),mock:true,supportsCharacterReferences:true,supportsWorldReferences:true,referenceForwardingEnabled:true});
+  assert.equal(result.referenceForwarding.enabled,false);
+  assert.equal(result.referenceForwarding.character,false);
+  assert.equal(result.referenceForwarding.world,false);
+});
+
+test('a named verified motion fallback cannot bypass required tool evidence',()=>{
+  for(const tools of [{ffmpeg:{available:true},ffprobe:{available:false}},{ffmpeg:{available:false},ffprobe:{available:true}},{ffmpeg:{available:true,libx264:false},ffprobe:{available:true}}]){
+    const result=generationRouteReadiness({...fallbackReport(),tools,routes:{video:{provider:'motion-fallback',verified:true}}});
+    assert.equal(result.stages.video.state,'UNAVAILABLE');
+  }
+});
+
 test('verified draft fallbacks are reported as draft routes, never model generation',()=>{
   const result=generationRouteReadiness(fallbackReport());
   assert.equal(result.costMode,'FREE ONLY');

@@ -93,9 +93,9 @@ export function validateOneClickDispatch(project,envelope){
   if(unsafeRoute(envelope.payload?.route))return {ok:false,reason:'unsafe-or-paid-route'};
   if(envelope.payload?.jobId!==envelope.jobId||envelope.payload?.type!==envelope.jobType||envelope.payload?.sceneId!==envelope.sceneId)return {ok:false,reason:'dispatch-payload-mismatch'};
   if(['image','motion'].includes(envelope.jobType)){
+    if(envelope.sceneId!==envelope.guard?.sceneId||envelope.sceneId!==envelope.generationGuard?.sceneId||envelope.jobType!==envelope.generationGuard?.type)return {ok:false,reason:'dispatch-scene-guard-mismatch'};
     const contract=envelope.payload?.promptContract;
     if(contract&&(contract.kind!=='aivm-v2-generation-prompt-contract'||contract.projectId!==envelope.projectId||contract.sceneId!==envelope.sceneId))return {ok:false,reason:'prompt-contract-mismatch'};
-    if(envelope.sceneId!==envelope.guard?.sceneId||envelope.sceneId!==envelope.generationGuard?.sceneId||envelope.jobType!==envelope.generationGuard?.type)return {ok:false,reason:'dispatch-scene-guard-mismatch'};
   }
   const guard=validateOperationGuard(project,envelope.guard,envelope.guardOptions||{});
   if(!guard.ok)return {ok:false,reason:`stale-dispatch:${guard.reason}`};

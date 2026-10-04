@@ -8,7 +8,7 @@ function loopbackEndpoint(value){
   if(!endpoint)return true;
   try{
     const url=new URL(endpoint);
-    return (url.protocol==='http:'||url.protocol==='https:')&&['127.0.0.1','localhost','::1'].includes(url.hostname);
+    return (url.protocol==='http:'||url.protocol==='https:')&&['127.0.0.1','localhost','[::1]'].includes(url.hostname);
   }catch{return false;}
 }
 
@@ -32,6 +32,7 @@ export function localWorkflowReadiness(manifest={},evidence={}){
   if(manifest.freeOnly!==true)blockers.push('free-only-not-declared');
   if(manifest.local!==true)blockers.push('local-only-not-declared');
   if(manifest.remote===true)blockers.push('remote-provider-disallowed');
+  if(engine==='comfyui'&&!text(manifest.endpoint))blockers.push('local-endpoint-required');
   if(!loopbackEndpoint(manifest.endpoint))blockers.push('non-loopback-endpoint-disallowed');
 
   const runtime={

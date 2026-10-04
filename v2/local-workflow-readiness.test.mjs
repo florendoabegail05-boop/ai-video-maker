@@ -20,6 +20,17 @@ const verifiedEvidence={
   outputProbeVerified:true
 };
 
+test('ComfyUI requires an explicit local endpoint while local-process may omit one',()=>{
+  assert.equal(localWorkflowReadiness({...manifest,endpoint:''},verifiedEvidence).routeVerified,false);
+  assert.equal(localWorkflowReadiness({...manifest,engine:'local-process',endpoint:''},verifiedEvidence).routeVerified,true);
+});
+
+test('IPv6 loopback is local, and each required runtime fact remains mandatory',()=>{
+  const local={...manifest,endpoint:'http://[::1]:8188'};
+  assert.equal(localWorkflowReadiness(local,verifiedEvidence).routeVerified,true);
+  for(const key of Object.keys(verifiedEvidence))assert.equal(localWorkflowReadiness(local,{...verifiedEvidence,[key]:false}).routeVerified,false);
+});
+
 test('configuration alone never verifies a local model route',()=>{
   const result=localWorkflowReadiness(manifest,{});
   assert.equal(result.routeVerified,false);

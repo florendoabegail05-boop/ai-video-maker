@@ -10,6 +10,7 @@ export function adapterRegistryFromCapabilities(report={}){
   if(report.freeOnlyImageWorkflow===true)routes.image={provider:'local-comfyui',verified:true};
   else if(report.imageFallback?.enabled===true)routes.image={provider:'fallback',verified:true};
   if(report.motionFallback?.enabled===true&&report.tools?.ffmpeg?.available===true&&report.tools?.ffprobe?.available===true&&report.tools.ffmpeg.libx264!==false)routes.video={provider:'motion-fallback',verified:true};
+  if(routes.video?.provider==='motion-fallback'&&(report.tools?.ffmpeg?.available!==true||report.tools?.ffprobe?.available!==true||report.tools.ffmpeg.libx264===false))delete routes.video;
   const workflows=report.workflows||{};
   const generatedAudio=report.generatedAudio||report.audioGeneration||{};
   const entries=[];

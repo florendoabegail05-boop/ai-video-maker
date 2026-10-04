@@ -39,8 +39,8 @@ export function generationRouteReadiness(report={},options={}){
     ?{state:'GENERATED_ROUTE_READY',mode:'generated',verified:true,provider:lipSyncAdapter.id,detail:'Verified FREE ONLY lip-sync route is available.'}
     :{state:'UNAVAILABLE',mode:'none',verified:false,provider:'unavailable',detail:'Lip-sync is not verified on the active FREE ONLY setup.'};
 
-  const characterReference=report?.supportsCharacterReferences===true;
-  const worldReference=report?.supportsWorldReferences===true;
+  const characterReference=report?.mock!==true&&report?.supportsCharacterReferences===true;
+  const worldReference=report?.mock!==true&&report?.supportsWorldReferences===true;
   const referenceForwarding={
     character:characterReference,
     world:worldReference,
