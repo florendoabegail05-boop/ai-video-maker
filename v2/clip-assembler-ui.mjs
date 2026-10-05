@@ -107,6 +107,7 @@ fileInput.addEventListener('change', async () => {
   finalHost.replaceChildren();
   render();
 
+  const failures = [];
   for (let index = 0; index < selected.length; index += 1) {
     const file = selected[index];
     try {
@@ -122,13 +123,13 @@ fileInput.addEventListener('change', async () => {
         audio: result.audio
       });
     } catch (error) {
-      setStatus(`Could not import ${file.name}: ${error.message}`);
-      await new Promise(resolve => setTimeout(resolve, 900));
+      failures.push(`${file.name}: ${error.message}`);
     }
   }
 
   busy = false;
   render();
+  if (failures.length) setStatus(`${clips.length} clip${clips.length === 1 ? '' : 's'} ready. Some imports failed: ${failures.join(' | ')}`);
 });
 
 clearButton.addEventListener('click', () => {
@@ -146,6 +147,7 @@ assembleButton.addEventListener('click', async () => {
   finalHost.replaceChildren();
   render();
   setStatus(`Assembling ${clips.length} clip${clips.length === 1 ? '' : 's'} into one 1080×1920 MP4…`);
+  let completionMessage = '';
   try {
     const durations = clips.map(clip => Number(clip.duration));
     const totalDuration = durations.reduce((sum, duration) => sum + duration, 0);
@@ -161,12 +163,13 @@ assembleButton.addEventListener('click', async () => {
     link.textContent = `Download assembled MP4 (${formatBytes(result.bytes)})`;
     finalHost.append(link);
     const audioNote = preserveAudio.checked ? ' Clip audio was preserved and normalized when present.' : ' Clip audio was intentionally removed.';
-    setStatus(`Assembly passed technical checks: ${result.media.video.width}×${result.media.video.height}, ${formatDuration(result.media.duration)}.${audioNote}`);
+    completionMessage = `Assembly passed technical checks: ${result.media.video.width}×${result.media.video.height}, ${formatDuration(result.media.duration)}.${audioNote}`;
   } catch (error) {
-    setStatus(`Assembly failed: ${error.message}`);
+    completionMessage = `Assembly failed: ${error.message}`;
   } finally {
     busy = false;
     render();
+    setStatus(completionMessage);
   }
 });
 
