@@ -1,6 +1,7 @@
 import * as local from './local-provider.mjs';
 import {compileScenePrompt,reusableAsset,selectedProjectAudio,captionsForTimeline} from './core.mjs';
 import {validateOneClickDispatch} from './one-click-dispatch-envelope.mjs';
+import {buildProviderGenerationRequest} from './provider-generation-request.mjs';
 import {buildRoutePlan} from './provider-router.mjs';
 import {runTechnicalQc} from './technical-qc.mjs';
 import {makeFinalOutputManifest} from './final-output.mjs';
@@ -30,13 +31,17 @@ export async function executeOneClickLocalJob(getProject,envelope,{output=null,a
   }
   if(type==='director'||type==='captions')return {ok:true,message:type==='director'?'Using saved scene plan.':'Using saved captions; no transcription claimed.'};
   if(type==='image'||type==='motion'){
+    const request=buildProviderGenerationRequest(envelope,report);
+    if(!request.ready||request.costMode!=='FREE ONLY')throw Error('Provider request not ready: '+request.blockers.join(', '));
     const kind=type==='image'?'image':'video';
     const existing=reusableAsset(project,envelope.sceneId,kind);
     if(existing){await api.inspectLocalMedia(existing.sourcePath);check();return {ok:true,reused:true,message:'Reused existing local media; original preserved.'};}
     const scene=project.scenes.find(s=>s.id===envelope.sceneId);
     const parent=type==='motion'?project.assets.find(a=>a.id===envelope.payload.sourceAssetId):null;
     if(type==='motion'&&(!parent?.sourcePath||parent.sceneId!==scene.id))throw Error('Guarded motion source missing.');
-    const result=type==='image'?await api.generateImage(compileScenePrompt(project,scene.id),project.hardwareMode):await api.animateImage(parent.sourcePath,scene.duration,project.hardwareMode);
+    // Reference IDs remain metadata until a verified local resolver exists.
+    if(request.references.forwardingEnabled&&request.references.allAssetIds.length)throw Error('Verified local reference resolver unavailable; reference execution blocked.');
+    const result=type==='image'?await api.generateImage(compileScenePrompt(project,scene.id),project.hardwareMode,request.route):await api.animateImage(parent.sourcePath,scene.duration,project.hardwareMode,request.route);
     project=check();
     if(parent&&project.assets.find(a=>a.id===parent.id)?.sourcePath!==parent.sourcePath)throw Error('Guarded motion source changed.');
     const expectedProvider={'basic-local-still':'fallback','local-comfyui':'comfyui','ffmpeg-camera-motion':'motion-fallback'}[envelope.payload.route];

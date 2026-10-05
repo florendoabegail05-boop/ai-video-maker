@@ -72,3 +72,55 @@ test('an envelope cannot redirect guarded generation to another scene',async()=>
  await assert.rejects(()=>executeOneClickLocalJob(()=>p,changed,{api:api()}),/dispatch-scene-guard-mismatch/);
  assert.equal(p.assets.length,0);
 });
+
+test('provider request boundary pins fallback routes and preserves the accepted result shape',async()=>{
+ let p=fixture(),s=createOneClickSession(p,report,options);const calls=[];
+ const localApi=api({generateImage:async(...args)=>{calls.push(['image',args]);return api().generateImage();},animateImage:async(...args)=>{calls.push(['motion',args]);return api().animateImage();}});
+ for(let i=0;i<4;i++){
+  const d=prepareNextOneClickDispatch(p,report,s,options);assert.equal(d.prepared,true);
+  const result=await executeOneClickLocalJob(()=>p,d.envelope,{api:localApi});
+  const next=commitOneClickGeneratedMedia(p,report,d.session,d.envelope,result,options);assert.equal(next.accepted,true);p=next.project;s=next.session;
+ }
+ assert.equal(calls.filter(c=>c[0]==='image').length,1);assert.equal(calls.filter(c=>c[0]==='motion').length,1);
+ assert.equal(calls[0][1][2],'basic-local-still');assert.equal(calls[1][1][3],'ffmpeg-camera-motion');
+ assert.equal(p.assets.length,2);
+});
+
+test('provider request boundary refuses mock, unavailable and mismatched reports without generation',async()=>{
+ const p=fixture(),d=imageDispatch(p);let calls=0;
+ for(const changed of [{...report,mock:true},{},{...report,freeOnlyImageWorkflow:true}]){
+  await assert.rejects(()=>executeOneClickLocalJob(()=>p,d.envelope,{api:api({bridgeCapabilities:async()=>changed,generateImage:async()=>{calls++;throw Error('unexpected generation');}})}),/Mock|Route unavailable|Provider request not ready/);
+ }
+ assert.equal(calls,0);
+});
+
+test('execution rejects all unsafe envelope permissions before calling generation',async()=>{
+ const p=fixture(),d=imageDispatch(p);let calls=0;
+ for(const flag of ['paidProviderAllowed','externalUploadAllowed','destructiveReplacementAllowed','automaticPublishingAllowed','publishAuthorized']){
+  await assert.rejects(()=>executeOneClickLocalJob(()=>p,{...d.envelope,[flag]:true},{api:api({generateImage:async()=>{calls++;}})}));
+ }
+ assert.equal(calls,0);
+});
+
+test('verified ComfyUI references fail closed without a resolver; reference-free generation works',async()=>{
+ const p=fixture();const comfy={...report,freeOnlyImageWorkflow:true,supportsCharacterReferences:true,supportsWorldReferences:true,referenceForwardingEnabled:true};
+ let s=createOneClickSession(p,comfy,options);let d=prepareNextOneClickDispatch(p,comfy,s,options);s=processOneClickDispatchResult(p,comfy,d.session,d.envelope,{ok:true},options).session;d=prepareNextOneClickDispatch(p,comfy,s,options);
+ let calls=0;const localApi=api({bridgeCapabilities:async()=>comfy,generateImage:async(...args)=>{calls++;assert.equal(args.length,3);assert.equal(args[2],'local-comfyui');return {...await api().generateImage(),provider:'comfyui',route:'local-comfyui'};}});
+ const withRefs=structuredClone(d.envelope);withRefs.payload.characterReferenceIds=['approved-character'];
+ await assert.rejects(()=>executeOneClickLocalJob(()=>p,withRefs,{api:localApi}),/reference resolver unavailable/);assert.equal(calls,0);
+ const result=await executeOneClickLocalJob(()=>p,d.envelope,{api:localApi});assert.equal(result.ok,true);assert.equal(calls,1);
+});
+
+test('fallback reference IDs are metadata only and never passed as provider arguments',async()=>{
+ const p=fixture(),d=imageDispatch(p);d.envelope.payload.characterReferenceIds=['approved-character'];d.envelope.payload.worldReferenceIds=['approved-world'];
+ let captured;await executeOneClickLocalJob(()=>p,d.envelope,{api:api({generateImage:async(...args)=>{captured=args;return api().generateImage();}})});
+ assert.equal(captured.length,3);assert.doesNotMatch(JSON.stringify(captured),/approved-character|approved-world|sourcePath|includeBytes/);
+});
+
+test('a not-ready provider request cannot execute even when legacy motion routing is available',async()=>{
+ let p=fixture(),s=createOneClickSession(p,report,options);
+ for(let i=0;i<2;i++){const d=prepareNextOneClickDispatch(p,report,s,options);const r=await executeOneClickLocalJob(()=>p,d.envelope,{api:api()});const n=commitOneClickGeneratedMedia(p,report,d.session,d.envelope,r,options);p=n.project;s=n.session;}
+ const d=prepareNextOneClickDispatch(p,report,s,options);assert.equal(d.envelope.jobType,'motion');let calls=0;
+ await assert.rejects(()=>executeOneClickLocalJob(()=>p,d.envelope,{api:api({bridgeCapabilities:async()=>({...report,tools:{ffmpeg:{available:true},ffprobe:{available:false}}}),animateImage:async()=>{calls++;}})}),/Provider request not ready/);
+ assert.equal(calls,0);
+});
