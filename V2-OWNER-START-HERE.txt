@@ -1,0 +1,26 @@
+AI VIDEO MAKER V2 - START HERE
+
+Extract the entire ZIP before starting. Keep all folders together.
+Node.js 18 or newer must already be installed. Nothing installs automatically.
+
+1. Double-click START-AI-VIDEO-MAKER-V2.cmd.
+2. Studio opens at http://127.0.0.1:8094/v2/.
+   If the browser opens before startup finishes, reload the page.
+   Run only one Studio copy at a time. Keep its terminal window open.
+3. Enter your video idea. Optional: import your own audio or media.
+4. Click Create video - FREE ONLY and wait for final verification.
+5. Rights Review is intentionally required. Review your rights and the result.
+   Publishing is always manual; this app never publishes automatically.
+
+Generated media is stored in %USERPROFILE%\AIVM-V2-Media.
+Final MP4 files are in its exports folder. An existing AIVM_MEDIA_ROOT or
+AIVM_OUTPUT_ROOT environment setting overrides these default locations.
+Projects and imported media are also stored in your browser. Keep using the
+same browser and URL; do not clear its site data. Use Complete ZIP backups.
+
+To stop: press Ctrl+C in the launcher terminal; confirm if Windows asks.
+Close the terminal after the services stop.
+
+The included local fallback creates draft stills and FFmpeg camera motion.
+Advanced AI image/video models are future upgrades, not required for this
+fallback production. No paid provider, model download or admin access is needed.
