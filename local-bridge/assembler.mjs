@@ -24,6 +24,7 @@ export async function assemble(clips, options = {}) {
   if (clips.length > 200) throw new Error('A maximum of 200 clips is supported per export.');
   const inputs = clips.map(safeInput);
   const audio = [options.voicePath, options.musicPath, ...(Array.isArray(options.sfxPaths) ? options.sfxPaths : [])].filter(Boolean).map(safeInput);
+  const preserveClipAudio = options.preserveClipAudio === true;
   await fs.mkdir(OUTPUT_ROOT, { recursive: true });
   const jobDir = await fs.mkdtemp(path.join(os.tmpdir(), 'aivm-assemble-'));
   try {
@@ -31,19 +32,40 @@ export async function assemble(clips, options = {}) {
     const durations = options.clipDurations;
     if (durations && (!Array.isArray(durations) || durations.length !== inputs.length || durations.some(d=>!Number.isFinite(Number(d))||Number(d)<1||Number(d)>60))) throw new Error('Clip durations must match the input clips (1–60 seconds).');
     const normalized = [];
-    for (let i = 0; i < inputs.length; i++) { const out = path.join(jobDir, `clip-${String(i).padStart(3, '0')}.mp4`); await run(FFMPEG, ['-y', '-i', inputs[i], ...(durations?['-t',String(durations[i])]:[]), '-vf', `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black,fps=${fps},format=yuv420p`, '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', out]); normalized.push(out); }
+    let sourceClipAudioTracks = 0;
+    for (let i = 0; i < inputs.length; i++) {
+      const out = path.join(jobDir, `clip-${String(i).padStart(3, '0')}.mp4`);
+      const commonVideoArgs = ['-vf', `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black,fps=${fps},format=yuv420p`, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20'];
+      if (!preserveClipAudio) {
+        await run(FFMPEG, ['-y', '-i', inputs[i], ...(durations?['-t',String(durations[i])]:[]), ...commonVideoArgs, '-an', out]);
+      } else {
+        const info = await inspectMedia(inputs[i]);
+        const clipDuration = Number(durations?.[i] || info.duration || 0);
+        if (!(clipDuration > 0)) throw new Error(`Could not determine duration for clip ${i + 1}.`);
+        if (info.audio) {
+          sourceClipAudioTracks += 1;
+          await run(FFMPEG, ['-y', '-i', inputs[i], '-t', String(clipDuration), ...commonVideoArgs, '-map', '0:v:0', '-map', '0:a:0', '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2', '-shortest', out]);
+        } else {
+          await run(FFMPEG, ['-y', '-i', inputs[i], '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=48000', '-t', String(clipDuration), ...commonVideoArgs, '-map', '0:v:0', '-map', '1:a:0', '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2', '-shortest', out]);
+        }
+      }
+      normalized.push(out);
+    }
     const listFile = path.join(jobDir, 'concat.txt'); await fs.writeFile(listFile, normalized.map(file => `file '${file.replaceAll("'", "'\\''")}'`).join('\n'));
-    const silentVideo = path.join(jobDir, 'video.mp4'); await run(FFMPEG, ['-y', '-f', 'concat', '-safe', '0', '-i', listFile, '-c', 'copy', '-movflags', '+faststart', silentVideo]);
-    const output = path.join(OUTPUT_ROOT, safeOutput(options.outputName || `aivm-${Date.now()}.mp4`)); let videoInput = silentVideo;
+    const baseVideo = path.join(jobDir, 'video.mp4'); await run(FFMPEG, ['-y', '-f', 'concat', '-safe', '0', '-i', listFile, '-c', 'copy', '-movflags', '+faststart', baseVideo]);
+    const output = path.join(OUTPUT_ROOT, safeOutput(options.outputName || `aivm-${Date.now()}.mp4`)); let videoInput = baseVideo;
     if (audio.length) {
-      const audioArgs = audio.flatMap(file => ['-i', file]); const padded = audio.map((_, i) => `[${i + 1}:a]apad[a${i}]`).join(';'); const labels = audio.map((_, i) => `[a${i}]`).join('');
-      const filter = `${padded};${labels}amix=inputs=${audio.length}:duration=longest:dropout_transition=2,aresample=48000,loudnorm=I=-16:TP=-1.5:LRA=11[a]`; const withAudio = path.join(jobDir, 'with-audio.mp4');
-      await run(FFMPEG, ['-y', '-i', silentVideo, ...audioArgs, '-filter_complex', filter, '-map', '0:v:0', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', withAudio]); videoInput = withAudio;
+      const audioArgs = audio.flatMap(file => ['-i', file]);
+      const sourceRefs = preserveClipAudio ? ['[0:a]', ...audio.map((_, i) => `[${i + 1}:a]`)] : audio.map((_, i) => `[${i + 1}:a]`);
+      const padded = sourceRefs.map((ref, i) => `${ref}apad[a${i}]`).join(';');
+      const labels = sourceRefs.map((_, i) => `[a${i}]`).join('');
+      const filter = `${padded};${labels}amix=inputs=${sourceRefs.length}:duration=longest:dropout_transition=2,aresample=48000,loudnorm=I=-16:TP=-1.5:LRA=11[a]`; const withAudio = path.join(jobDir, 'with-audio.mp4');
+      await run(FFMPEG, ['-y', '-i', baseVideo, ...audioArgs, '-filter_complex', filter, '-map', '0:v:0', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', withAudio]); videoInput = withAudio;
     }
     if (Array.isArray(options.captions) && options.captions.length) { const srt = options.captions.map((c, i) => `${i + 1}\n${srtTime(c.start)} --> ${srtTime(c.end)}\n${String(c.text || '').replace(/\r?\n/g, ' ')}\n`).join('\n'); const srtFile = path.join(jobDir, 'captions.srt'); await fs.writeFile(srtFile, srt, 'utf8'); await run(FFMPEG, ['-y', '-i', videoInput, '-vf', `subtitles='${subtitlePath(srtFile)}'`, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-c:a', 'copy', '-movflags', '+faststart', output]); }
     else await fs.copyFile(videoInput, output);
-    const media = await inspectMedia(output); const expectedDuration = Number(options.expectedDuration || 0) || inputs.length * (Number(options.clipDuration) || 0); const qc = qualityGate(media, { width, height, audio: audio.length > 0, duration: expectedDuration });
+    const media = await inspectMedia(output); const expectedDuration = Number(options.expectedDuration || 0) || inputs.length * (Number(options.clipDuration) || 0); const qc = qualityGate(media, { width, height, audio: audio.length > 0 || preserveClipAudio, duration: expectedDuration });
     if (!qc.passed) throw Object.assign(new Error(`Export quality gate failed: ${qc.errors.join(' ')}`), { status: 422, qc });
-    const stat = await fs.stat(output); return { status: 'completed', jobId: randomUUID(), outputPath: output, bytes: stat.size, clips: inputs.length, width, height, fps, audioTracks: audio.length, captions: Array.isArray(options.captions) ? options.captions.length : 0, media, qc };
+    const stat = await fs.stat(output); return { status: 'completed', jobId: randomUUID(), outputPath: output, bytes: stat.size, clips: inputs.length, width, height, fps, audioTracks: audio.length + (preserveClipAudio ? 1 : 0), clipAudioPreserved: preserveClipAudio, sourceClipAudioTracks, captions: Array.isArray(options.captions) ? options.captions.length : 0, media, qc };
   } finally { await fs.rm(jobDir, { recursive: true, force: true }).catch(() => {}); }
 }
